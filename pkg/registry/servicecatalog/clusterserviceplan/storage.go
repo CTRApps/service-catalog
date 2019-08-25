@@ -21,10 +21,10 @@ import (
 	"errors"
 	"fmt"
 
-	scmeta "github.com/kubernetes-incubator/service-catalog/pkg/api/meta"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/server"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/tableconvertor"
+	scmeta "github.com/kubernetes-sigs/service-catalog/pkg/api/meta"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/server"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/tableconvertor"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -105,12 +105,12 @@ func toSelectableFields(servicePlan *servicecatalog.ClusterServicePlan) fields.S
 }
 
 // GetAttrs returns labels and fields of a given object for filtering purposes.
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, bool, error) {
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	servicePlan, ok := obj.(*servicecatalog.ClusterServicePlan)
 	if !ok {
-		return nil, nil, false, fmt.Errorf("given object is not a ClusterServicePlan")
+		return nil, nil, fmt.Errorf("given object is not a ClusterServicePlan")
 	}
-	return labels.Set(servicePlan.ObjectMeta.Labels), toSelectableFields(servicePlan), servicePlan.Initializers != nil, nil
+	return labels.Set(servicePlan.ObjectMeta.Labels), toSelectableFields(servicePlan), nil
 }
 
 // NewStorage creates a new rest.Storage responsible for accessing
@@ -119,9 +119,9 @@ func NewStorage(opts server.Options) (rest.Storage, rest.Storage) {
 	prefix := "/" + opts.ResourcePrefix()
 
 	storageInterface, dFunc := opts.GetStorage(
-		&servicecatalog.ClusterServicePlan{},
 		prefix,
 		clusterServicePlanRESTStrategies,
+		EmptyObject,
 		NewList,
 		nil,
 		storage.NoTriggerPublisher,
@@ -202,6 +202,6 @@ func (r *StatusREST) Get(ctx context.Context, name string, options *metav1.GetOp
 
 // Update alters the status subset of an object and it
 // implements rest.Updater interface
-func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc) (runtime.Object, bool, error) {
-	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation)
+func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
+	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 }

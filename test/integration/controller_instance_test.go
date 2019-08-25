@@ -26,16 +26,16 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	scfeatures "github.com/kubernetes-incubator/service-catalog/pkg/features"
+	scfeatures "github.com/kubernetes-sigs/service-catalog/pkg/features"
 	osb "github.com/pmorie/go-open-service-broker-client/v2"
 	fakeosb "github.com/pmorie/go-open-service-broker-client/v2/fake"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 
 	// avoid error `servicecatalog/v1beta1 is not enabled`
-	_ "github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/install"
+	_ "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/install"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	"github.com/kubernetes-incubator/service-catalog/test/util"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kubernetes-sigs/service-catalog/test/util"
 )
 
 // TestCreateServiceInstanceNonExistentClusterServiceClassOrPlan tests that a ServiceInstance gets
@@ -185,7 +185,7 @@ func TestCreateServiceInstanceNonExistentClusterServiceBroker(t *testing.T) {
 				t.Fatalf("error creating ClusterServiceClass: %v", err)
 			}
 
-			if err := util.WaitForClusterServiceClassToExist(ct.client, testClusterServiceClassGUID); err != nil {
+			if err := util.WaitForServiceClassToExist(ct.client, testClusterServiceClassGUID); err != nil {
 				t.Fatalf("error waiting for ClusterServiceClass to exist: %v", err)
 			}
 
@@ -206,7 +206,7 @@ func TestCreateServiceInstanceNonExistentClusterServiceBroker(t *testing.T) {
 			if _, err := ct.client.ClusterServicePlans().Create(servicePlan); err != nil {
 				t.Fatalf("error creating ClusterServicePlan: %v", err)
 			}
-			if err := util.WaitForClusterServicePlanToExist(ct.client, testPlanExternalID); err != nil {
+			if err := util.WaitForServicePlanToExist(ct.client, testPlanExternalID); err != nil {
 				t.Fatalf("error waiting for ClusterServicePlan to exist: %v", err)
 			}
 		},
@@ -216,46 +216,6 @@ func TestCreateServiceInstanceNonExistentClusterServiceBroker(t *testing.T) {
 			Type:   v1beta1.ServiceInstanceConditionReady,
 			Status: v1beta1.ConditionFalse,
 			Reason: "ReferencesNonexistentBroker",
-		}); err != nil {
-			t.Fatalf("error waiting for instance reconciliation to fail: %v", err)
-		}
-	})
-}
-
-// TestCreateServiceInstanceWithAuthError tests creating a SerivceInstance when
-// the secret containing the broker authorization info cannot be found.
-func TestCreateServiceInstanceWithAuthError(t *testing.T) {
-	ct := &controllerTest{
-		t: t,
-		broker: func() *v1beta1.ClusterServiceBroker {
-			b := getTestBroker()
-			b.Spec.AuthInfo = &v1beta1.ClusterServiceBrokerAuthInfo{
-				Basic: &v1beta1.ClusterBasicAuthConfig{
-					SecretRef: &v1beta1.ObjectReference{
-						Namespace: testNamespace,
-						Name:      "secret-name",
-					},
-				},
-			}
-			return b
-		}(),
-		instance:                     getTestInstance(),
-		skipVerifyingInstanceSuccess: true,
-		preCreateBroker: func(ct *controllerTest) {
-			prependGetSecretReaction(ct.kubeClient, "secret-name", map[string][]byte{
-				"username": []byte("user"),
-				"password": []byte("pass"),
-			})
-		},
-		preCreateInstance: func(ct *controllerTest) {
-			prependGetSecretNotFoundReaction(ct.kubeClient)
-		},
-	}
-	ct.run(func(ct *controllerTest) {
-		if err := util.WaitForInstanceCondition(ct.client, testNamespace, testInstanceName, v1beta1.ServiceInstanceCondition{
-			Type:   v1beta1.ServiceInstanceConditionReady,
-			Status: v1beta1.ConditionFalse,
-			Reason: "ErrorGettingAuthCredentials",
 		}); err != nil {
 			t.Fatalf("error waiting for instance reconciliation to fail: %v", err)
 		}
@@ -507,7 +467,7 @@ func TestUpdateServiceInstanceNewDashboardResponse(t *testing.T) {
 		{
 			name: "alpha features enabled",
 			setup: func(ct *controllerTest) {
-				if err := utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.UpdateDashboardURL)); err != nil {
+				if err := utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.UpdateDashboardURL)); err != nil {
 					t.Fatalf("Failed to enable updatable dashboard url feature: %v", err)
 				}
 			},
@@ -518,7 +478,7 @@ func TestUpdateServiceInstanceNewDashboardResponse(t *testing.T) {
 		{
 			name: "alpha feature disabled",
 			setup: func(ct *controllerTest) {
-				if err := utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.UpdateDashboardURL)); err != nil {
+				if err := utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.UpdateDashboardURL)); err != nil {
 					t.Fatalf("Failed to enable updatable dashboard url feature: %v", err)
 				}
 			},
@@ -558,7 +518,7 @@ func TestUpdateServiceInstanceNewDashboardResponse(t *testing.T) {
 // ServiceInstance.
 func TestUpdateServiceInstanceChangePlans(t *testing.T) {
 	otherPlanName := "otherplanname"
-	otherPlanID := "other-plan-id"
+	otherPlanID := "otherplanid"
 	cases := []struct {
 		name                          string
 		useExternalNames              bool
@@ -968,15 +928,14 @@ func TestUpdateServiceInstanceUpdateParameters(t *testing.T) {
 // with/without retries.
 func TestCreateServiceInstanceWithRetries(t *testing.T) {
 	cases := []struct {
-		name                        string
-		setup                func(ct *controllerTest)
+		name  string
+		setup func(ct *controllerTest)
 	}{
 		{
 			name: "no retry",
 			setup: func(ct *controllerTest) {
 				ct.osbClient.ProvisionReaction = &fakeosb.ProvisionReaction{
-					Response: &osb.ProvisionResponse{
-					},
+					Response: &osb.ProvisionResponse{},
 				}
 			},
 		},
@@ -993,8 +952,7 @@ func TestCreateServiceInstanceWithRetries(t *testing.T) {
 							},
 						},
 						fakeosb.ProvisionReaction{
-							Response: &osb.ProvisionResponse{
-							},
+							Response: &osb.ProvisionResponse{},
 						},
 					}))
 			},
@@ -1012,8 +970,7 @@ func TestCreateServiceInstanceWithRetries(t *testing.T) {
 							},
 						},
 						fakeosb.ProvisionReaction{
-							Response: &osb.ProvisionResponse{
-							},
+							Response: &osb.ProvisionResponse{},
 						},
 					}))
 			},
@@ -1024,8 +981,8 @@ func TestCreateServiceInstanceWithRetries(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ct := &controllerTest{
-				t:      t,
-				broker: getTestBroker(),
+				t:        t,
+				broker:   getTestBroker(),
 				instance: getTestInstance(),
 			}
 			ct.setup = tc.setup
@@ -1100,7 +1057,7 @@ func TestCreateServiceInstanceWithProvisionFailure(t *testing.T) {
 		nonHTTPResponseError error
 		// expected reason used in the instance condition to indiciate that the provision failed
 		provisionErrorReason string
-		// expected reason used in the instance condiiton to indicate that the provision failed terminally
+		// expected reason used in the instance condition to indicate that the provision failed terminally
 		failReason string
 		// true if the failed provision is expected to trigger orphan mitigation
 		triggersOrphanMitigation bool
@@ -1215,9 +1172,8 @@ func TestCreateServiceInstanceWithProvisionFailure(t *testing.T) {
 							}
 							if respondSuccessfullyToProvision {
 								return &osb.ProvisionResponse{}, nil
-							} else {
-								return nil, reactionError
 							}
+							return nil, reactionError
 						})
 					respondSuccessfullyToDeprovision := false
 					blockDeprovision := true
@@ -1232,11 +1188,10 @@ func TestCreateServiceInstanceWithProvisionFailure(t *testing.T) {
 							}
 							if respondSuccessfullyToDeprovision {
 								return &osb.DeprovisionResponse{}, nil
-							} else {
-								return nil, osb.HTTPStatusCodeError{
-									StatusCode:   500,
-									ErrorMessage: strPtr("temporary deprovision error"),
-								}
+							}
+							return nil, osb.HTTPStatusCodeError{
+								StatusCode:   500,
+								ErrorMessage: strPtr("temporary deprovision error"),
 							}
 						})
 				},
@@ -1341,7 +1296,7 @@ func TestCreateServiceInstanceFailsWithNonexistentPlan(t *testing.T) {
 		skipVerifyingInstanceSuccess: true,
 		preCreateInstance: func(ct *controllerTest) {
 			otherPlanName := "otherplanname"
-			otherPlanID := "other-plan-id"
+			otherPlanID := "otherplanid"
 			catalogResponse := ct.osbClient.CatalogReaction.(*fakeosb.CatalogReaction).Response
 			catalogResponse.Services[0].PlanUpdatable = truePtr()
 			catalogResponse.Services[0].Plans = []osb.Plan{
@@ -1357,10 +1312,10 @@ func TestCreateServiceInstanceFailsWithNonexistentPlan(t *testing.T) {
 			if _, err := ct.client.ClusterServiceBrokers().Update(ct.broker); err != nil {
 				t.Fatalf("error updating Broker: %v", err)
 			}
-			if err := util.WaitForClusterServicePlanToExist(ct.client, otherPlanID); err != nil {
+			if err := util.WaitForServicePlanToExist(ct.client, otherPlanID); err != nil {
 				t.Fatalf("error waiting for ClusterServiceClass to exist: %v", err)
 			}
-			if err := util.WaitForClusterServicePlanToNotExist(ct.client, testPlanExternalID); err != nil {
+			if err := util.WaitForServicePlanToNotExist(ct.client, testPlanExternalID); err != nil {
 				t.Fatalf("error waiting for ClusterServiceClass to not exist: %v", err)
 			}
 
@@ -1714,7 +1669,7 @@ func TestPollServiceInstanceLastOperationSuccess(t *testing.T) {
 		{
 			name: "async last operation response successful with originating identity",
 			setup: func(ct *controllerTest) {
-				if err := utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.OriginatingIdentity)); err != nil {
+				if err := utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.OriginatingIdentity)); err != nil {
 					t.Fatalf("Failed to enable originating identity feature: %v", err)
 				}
 
@@ -1768,94 +1723,6 @@ func TestPollServiceInstanceLastOperationSuccess(t *testing.T) {
 					if err := util.WaitForInstanceCondition(ct.client, testNamespace, testInstanceName, *tc.verifyCondition); err != nil {
 						t.Fatalf("error waiting for instance condition: %v", err)
 					}
-				}
-			})
-		})
-	}
-}
-
-// TestPollServiceInstanceLastOperationFailure checks that async operation is correctly
-// retried after the initial operation fails
-func TestPollServiceInstanceLastOperationFailure(t *testing.T) {
-	cases := []struct {
-		name                         string
-		setup                        func(t *controllerTest)
-		skipVerifyingInstanceSuccess bool
-		failureCondition             *v1beta1.ServiceInstanceCondition
-		successCondition             *v1beta1.ServiceInstanceCondition
-	}{
-		{
-			name: "async provisioning with last operation response state failed",
-			setup: func(ct *controllerTest) {
-				ct.osbClient.ProvisionReaction = &fakeosb.ProvisionReaction{
-					Response: &osb.ProvisionResponse{
-						Async: true,
-					},
-				}
-				ct.osbClient.PollLastOperationReaction = fakeosb.DynamicPollLastOperationReaction(
-					getLastOperationResponseByPollCountStates(2,
-						[]osb.LastOperationState{
-							osb.StateFailed,
-							osb.StateSucceeded,
-						}))
-			},
-			skipVerifyingInstanceSuccess: false,
-			failureCondition: &v1beta1.ServiceInstanceCondition{
-				Type:   v1beta1.ServiceInstanceConditionReady,
-				Status: v1beta1.ConditionFalse,
-				Reason: "ProvisionCallFailed",
-			},
-			successCondition: &v1beta1.ServiceInstanceCondition{
-				Type:   v1beta1.ServiceInstanceConditionReady,
-				Status: v1beta1.ConditionTrue,
-				Reason: "ProvisionedSuccessfully",
-			},
-		},
-		// response errors
-		{
-			name: "async provisioning with last operation response state failed eventually",
-			setup: func(ct *controllerTest) {
-				ct.osbClient.ProvisionReaction = &fakeosb.ProvisionReaction{
-					Response: &osb.ProvisionResponse{
-						Async: true,
-					},
-				}
-				ct.osbClient.PollLastOperationReaction = fakeosb.DynamicPollLastOperationReaction(
-					getLastOperationResponseByPollCountStates(1,
-						[]osb.LastOperationState{
-							osb.StateInProgress,
-							osb.StateFailed,
-							osb.StateInProgress,
-							osb.StateSucceeded,
-						}))
-			},
-			skipVerifyingInstanceSuccess: false,
-			failureCondition: &v1beta1.ServiceInstanceCondition{
-				Type:   v1beta1.ServiceInstanceConditionReady,
-				Status: v1beta1.ConditionFalse,
-				Reason: "ProvisionCallFailed",
-			},
-			successCondition: &v1beta1.ServiceInstanceCondition{
-				Type:   v1beta1.ServiceInstanceConditionReady,
-				Status: v1beta1.ConditionTrue,
-				Reason: "ProvisionedSuccessfully",
-			},
-		},
-	}
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			//t.Parallel()
-			ct := &controllerTest{
-				t:                            t,
-				broker:                       getTestBroker(),
-				instance:                     getTestInstance(),
-				skipVerifyingInstanceSuccess: tc.skipVerifyingInstanceSuccess,
-				setup: tc.setup,
-			}
-			ct.run(func(ct *controllerTest) {
-				if err := util.WaitForInstanceCondition(ct.client, testNamespace, testInstanceName, *tc.successCondition); err != nil {
-					t.Fatalf("error waiting for instance condition: %v", err)
 				}
 			})
 		})

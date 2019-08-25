@@ -26,11 +26,11 @@ import (
 	"k8s.io/apiserver/pkg/admission"
 	core "k8s.io/client-go/testing"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	scadmission "github.com/kubernetes-incubator/service-catalog/pkg/apiserver/admission"
-	"github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset"
-	"github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset/fake"
-	informers "github.com/kubernetes-incubator/service-catalog/pkg/client/informers_generated/internalversion"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	scadmission "github.com/kubernetes-sigs/service-catalog/pkg/apiserver/admission"
+	"github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset"
+	"github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset/fake"
+	informers "github.com/kubernetes-sigs/service-catalog/pkg/client/informers_generated/internalversion"
 )
 
 // newHandlerForTest returns a configured handler for testing.
@@ -62,7 +62,7 @@ func newServiceBinding() servicecatalog.ServiceBinding {
 			Namespace: "test-ns",
 		},
 		Spec: servicecatalog.ServiceBindingSpec{
-			ServiceInstanceRef: servicecatalog.LocalObjectReference{
+			InstanceRef: servicecatalog.LocalObjectReference{
 				Name: "test-instance",
 			},
 			SecretName: "test-secret",
@@ -96,9 +96,9 @@ func TestBlockNewCredentialsForDeletedInstance(t *testing.T) {
 	informerFactory.Start(wait.NeverStop)
 
 	err = handler.(admission.MutationInterface).Admit(admission.NewAttributesRecord(&credential, nil, servicecatalog.Kind("ServiceBindings").WithVersion("version"),
-		"test-ns", "test-cred", servicecatalog.Resource("servicebindings").WithVersion("version"), "", admission.Create, nil))
+		"test-ns", "test-cred", servicecatalog.Resource("servicebindings").WithVersion("version"), "", admission.Create, nil, false, nil), nil)
 	if err == nil {
-		t.Errorf("Unexpected error: %v", err.Error())
+		t.Error("Unexpected error: admission controller failed blocking the request")
 	} else {
 		if err.Error() != "servicebindings.servicecatalog.k8s.io \"test-cred\" is forbidden: ServiceBinding test-ns/test-cred references a ServiceInstance that is being deleted: test-ns/test-instance" {
 			t.Fatalf("admission controller blocked the request but not with expected error, expected a forbidden error, got %q", err.Error())
@@ -119,7 +119,7 @@ func TestAllowNewCredentialsForNonDeletedInstance(t *testing.T) {
 
 	credential := newServiceBinding()
 	err = handler.(admission.MutationInterface).Admit(admission.NewAttributesRecord(&credential, nil, servicecatalog.Kind("ServiceBindings").WithVersion("version"),
-		"test-ns", "test-cred", servicecatalog.Resource("servicebindings").WithVersion("version"), "", admission.Create, nil))
+		"test-ns", "test-cred", servicecatalog.Resource("servicebindings").WithVersion("version"), "", admission.Create, nil, false, nil), nil)
 	if err != nil {
 		t.Errorf("Error, admission controller should not block this test")
 	}

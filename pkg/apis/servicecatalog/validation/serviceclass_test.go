@@ -21,7 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
 )
 
 func validClusterServiceClass() *servicecatalog.ClusterServiceClass {
@@ -119,16 +119,7 @@ func TestValidateClusterServiceClass(t *testing.T) {
 			name: "invalid serviceClass - invalid externalName",
 			serviceClass: func() *servicecatalog.ClusterServiceClass {
 				s := validClusterServiceClass()
-				s.Spec.ExternalName = "****"
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "invalid serviceClass - underscore in externalName",
-			serviceClass: func() *servicecatalog.ClusterServiceClass {
-				s := validClusterServiceClass()
-				s.Spec.ExternalName = "test_serviceclass"
+				s.Spec.ExternalName = ""
 				return s
 			}(),
 			valid: false,
@@ -270,16 +261,7 @@ func TestValidateServiceClass(t *testing.T) {
 			name: "invalid serviceClass - invalid externalName",
 			serviceClass: func() *servicecatalog.ServiceClass {
 				s := validServiceClass()
-				s.Spec.ExternalName = "****"
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "invalid serviceClass - underscore in externalName",
-			serviceClass: func() *servicecatalog.ServiceClass {
-				s := validServiceClass()
-				s.Spec.ExternalName = "test_serviceclass"
+				s.Spec.ExternalName = ""
 				return s
 			}(),
 			valid: false,

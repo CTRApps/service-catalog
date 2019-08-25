@@ -7,7 +7,7 @@ to provision and bind to application dependencies like databases, object
 storage, message-oriented middleware, and more.
 
 For more information,
-[visit the project on github](https://github.com/kubernetes-incubator/service-catalog).
+[visit the project on github](https://github.com/kubernetes-sigs/service-catalog).
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ $ helm install . --name catalog --namespace catalog
 To uninstall/delete the `catalog` deployment:
 
 ```bash
-$ helm delete catalog
+$ helm delete --purge catalog
 ```
 
 The command removes all the Kubernetes components associated with the chart and
@@ -40,8 +40,11 @@ chart and their default values.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `image` | apiserver image to use | `quay.io/kubernetes-service-catalog/service-catalog:v0.1.32` |
+| `image` | apiserver image to use | `quay.io/kubernetes-service-catalog/service-catalog:v0.2.1` |
 | `imagePullPolicy` | `imagePullPolicy` for the service catalog | `Always` |
+| `apiserver.replicas` | `replicas` for the service catalog apiserver pod count | `1` |
+| `apiserver.updateStrategy` | `updateStrategy` for the service catalog apiserver deployments | `RollingUpdate` |
+| `apiserver.minReadySeconds` | how many seconds an apiServer pod needs to be ready before killing the next, during update | `1` |
 | `apiserver.annotations` | Annotations for apiserver pods | `{}` |
 | `apiserver.nodeSelector` | A nodeSelector value to apply to the apiserver pods. If not specified, no nodeSelector will be applied | |
 | `apiserver.aggregator.priority` | Priority of the APIService. | `100` |
@@ -69,11 +72,15 @@ chart and their default values.
 | `apiserver.serviceAccount` | Service account. | `service-catalog-apiserver` |
 | `apiserver.serveOpenAPISpec` | If true, makes the API server serve the OpenAPI schema | `false` |
 | `apiserver.resources` | Resources allocation (Requests and Limits) | `{requests: {cpu: 100m, memory: 20Mi}, limits: {cpu: 100m, memory: 30Mi}}` |
+| `controllerManager.replicas` | `replicas` for the service catalog controllerManager pod count | `1` |
+| `controllerManager.updateStrategy` | `updateStrategy` for the service catalog controllerManager deployments | `RollingUpdate` |
+| `controllerManager.minReadySeconds` | how many seconds a controllerManager pod needs to be ready before killing the next, during update | `1` |
 | `controllerManager.annotations` | Annotations for controllerManager pods | `{}` |
 | `controllerManager.nodeSelector` | A nodeSelector value to apply to the controllerManager pods. If not specified, no nodeSelector will be applied | |
 | `controllerManager.healthcheck.enabled` | Enable readiness and liveliness probes | `true` |
 | `controllerManager.verbosity` | Log level; valid values are in the range 0 - 10 | `10` |
 | `controllerManager.resyncInterval` | How often the controller should resync informers; duration format (`20m`, `1h`, etc) | `5m` |
+| `controllerManager.osbApiRequestTimeout` | The maximum amount of timeout to any request to the broker; duration format (`60s`, `3m`, etc) | `60s` |
 | `controllerManager.brokerRelistInterval` | How often the controller should relist the catalogs of ready brokers; duration format (`20m`, `1h`, etc) | `24h` |
 | `controllerManager.brokerRelistIntervalActivated` | Whether or not the controller supports a --broker-relist-interval flag. If this is set to true, brokerRelistInterval will be used as the value for that flag. | `true` |
 | `controllerManager.profiling.disabled` | Disable profiling via web interface host:port/debug/pprof/ | `false` |
@@ -82,6 +89,9 @@ chart and their default values.
 | `controllerManager.serviceAccount` | Service account | `service-catalog-controller-manager` |
 | `controllerManager.apiserverSkipVerify` | Controls whether the API server's TLS verification should be skipped | `true` |
 | `controllerManager.enablePrometheusScrape` | Whether the controller will expose metrics on /metrics | `false` |
+| `controllerManager.service.type` | Type of service; valid values are `LoadBalancer` , `NodePort` and `ClusterIP` | `ClusterIP` |
+| `controllerManager.service.nodePort.securePort` | If service type is `NodePort`, specifies a port in allowable range (e.g. 30000 - 32767 on minikube); The TLS-enabled endpoint will be exposed here | `30444` |
+| `controllerManager.service.clusterIP` | If service type is ClusterIP, specify clusterIP as `None` for `headless services` OR specify your own specific IP OR leave blank to let Kubernetes assign a cluster IP |  |
 | `controllerManager.resources` | Resources allocation (Requests and Limits) | `{requests: {cpu: 100m, memory: 20Mi}, limits: {cpu: 100m, memory: 30Mi}}` |
 | `useAggregator` | whether or not to set up the controller-manager to go through the main Kubernetes API server's API aggregator | `true` |
 | `rbacEnable` | If true, create & use RBAC resources | `true` |

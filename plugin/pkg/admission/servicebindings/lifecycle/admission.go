@@ -20,15 +20,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	informers "github.com/kubernetes-incubator/service-catalog/pkg/client/informers_generated/internalversion"
-	internalversion "github.com/kubernetes-incubator/service-catalog/pkg/client/listers_generated/servicecatalog/internalversion"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	informers "github.com/kubernetes-sigs/service-catalog/pkg/client/informers_generated/internalversion"
+	internalversion "github.com/kubernetes-sigs/service-catalog/pkg/client/listers_generated/servicecatalog/internalversion"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apiserver/pkg/admission"
 
-	scadmission "github.com/kubernetes-incubator/service-catalog/pkg/apiserver/admission"
+	scadmission "github.com/kubernetes-sigs/service-catalog/pkg/apiserver/admission"
 )
 
 const (
@@ -54,7 +54,7 @@ type enforceNoNewCredentialsForDeletedInstance struct {
 
 var _ = scadmission.WantsInternalServiceCatalogInformerFactory(&enforceNoNewCredentialsForDeletedInstance{})
 
-func (b *enforceNoNewCredentialsForDeletedInstance) Admit(a admission.Attributes) error {
+func (b *enforceNoNewCredentialsForDeletedInstance) Admit(a admission.Attributes, o admission.ObjectInterfaces) error {
 
 	// we need to wait for our caches to warm
 	if !b.WaitForReady() {
@@ -76,7 +76,7 @@ func (b *enforceNoNewCredentialsForDeletedInstance) Admit(a admission.Attributes
 		return apierrors.NewBadRequest("Resource was marked with kind ServiceBinding but was unable to be converted")
 	}
 
-	instanceRef := credentials.Spec.ServiceInstanceRef
+	instanceRef := credentials.Spec.InstanceRef
 	instance, err := b.instanceLister.ServiceInstances(credentials.Namespace).Get(instanceRef.Name)
 
 	// block the credentials operation if the ServiceInstance is being deleted
@@ -86,7 +86,7 @@ func (b *enforceNoNewCredentialsForDeletedInstance) Admit(a admission.Attributes
 			credentials.Name,
 			credentials.Namespace,
 			instanceRef.Name)
-		glog.Info(warning, err)
+		klog.Info(warning, err)
 		return admission.NewForbidden(a, fmt.Errorf(warning))
 	}
 

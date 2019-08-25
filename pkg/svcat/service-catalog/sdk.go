@@ -19,9 +19,9 @@ package servicecatalog
 import (
 	"time"
 
-	apiv1beta1 "github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	"github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset"
-	"github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset/typed/servicecatalog/v1beta1"
+	apiv1beta1 "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset"
+	"github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset/typed/servicecatalog/v1beta1"
 	apicorev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
@@ -29,7 +29,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-// SvcatClient is an interface containing the variuos actions in the svcat pkg lib
+// SvcatClient is an interface containing the various actions in the svcat pkg lib
 // This interface is then faked with Counterfeiter for the cmd/svcat unit tests
 type SvcatClient interface {
 	Bind(string, string, string, string, string, interface{}, map[string]string) (*apiv1beta1.ServiceBinding, error)
@@ -43,19 +43,23 @@ type SvcatClient interface {
 	RetrieveBindingsByInstance(*apiv1beta1.ServiceInstance) ([]apiv1beta1.ServiceBinding, error)
 	Unbind(string, string) ([]types.NamespacedName, error)
 	WaitForBinding(string, string, time.Duration, *time.Duration) (*apiv1beta1.ServiceBinding, error)
+	RemoveBindingFinalizerByInstance(string, string) ([]types.NamespacedName, error)
+	RemoveFinalizerForBindings([]types.NamespacedName) ([]types.NamespacedName, error)
+	RemoveFinalizerForBinding(types.NamespacedName) error
+	RemoveFinalizerForInstance(string, string) error
 
-	Deregister(string) error
+	Deregister(string, *ScopeOptions) error
 	RetrieveBrokers(opts ScopeOptions) ([]Broker, error)
-	RetrieveBroker(string) (*apiv1beta1.ClusterServiceBroker, error)
+	RetrieveBrokerByID(string, ScopeOptions) (Broker, error)
 	RetrieveBrokerByClass(*apiv1beta1.ClusterServiceClass) (*apiv1beta1.ClusterServiceBroker, error)
-	Register(string, string, *RegisterOptions) (*apiv1beta1.ClusterServiceBroker, error)
-	Sync(string, int) error
-	WaitForBroker(string, time.Duration, *time.Duration) (Broker, error)
+	Register(string, string, *RegisterOptions, *ScopeOptions) (Broker, error)
+	Sync(string, ScopeOptions, int) error
+	WaitForBroker(string, *ScopeOptions, time.Duration, *time.Duration) (Broker, error)
 
 	RetrieveClasses(ScopeOptions) ([]Class, error)
 	RetrieveClassByName(string, ScopeOptions) (Class, error)
-	RetrieveClassByID(string) (*apiv1beta1.ClusterServiceClass, error)
-	RetrieveClassByPlan(*apiv1beta1.ClusterServicePlan) (*apiv1beta1.ClusterServiceClass, error)
+	RetrieveClassByID(string, ScopeOptions) (Class, error)
+	RetrieveClassByPlan(Plan) (Class, error)
 	CreateClassFrom(CreateClassFromOptions) (Class, error)
 
 	Deprovision(string, string) error
@@ -63,19 +67,20 @@ type SvcatClient interface {
 	InstanceToServiceClassAndPlan(*apiv1beta1.ServiceInstance) (*apiv1beta1.ClusterServiceClass, *apiv1beta1.ClusterServicePlan, error)
 	IsInstanceFailed(*apiv1beta1.ServiceInstance) bool
 	IsInstanceReady(*apiv1beta1.ServiceInstance) bool
-	Provision(string, string, string, string, string, interface{}, map[string]string) (*apiv1beta1.ServiceInstance, error)
+	Provision(string, string, string, bool, *ProvisionOptions) (*apiv1beta1.ServiceInstance, error)
 	RetrieveInstance(string, string) (*apiv1beta1.ServiceInstance, error)
 	RetrieveInstanceByBinding(*apiv1beta1.ServiceBinding) (*apiv1beta1.ServiceInstance, error)
 	RetrieveInstances(string, string, string) (*apiv1beta1.ServiceInstanceList, error)
-	RetrieveInstancesByPlan(*apiv1beta1.ClusterServicePlan) ([]apiv1beta1.ServiceInstance, error)
+	RetrieveInstancesByPlan(Plan) ([]apiv1beta1.ServiceInstance, error)
 	TouchInstance(string, string, int) error
 	WaitForInstance(string, string, time.Duration, *time.Duration) (*apiv1beta1.ServiceInstance, error)
 	WaitForInstanceToNotExist(string, string, time.Duration, *time.Duration) (*apiv1beta1.ServiceInstance, error)
 
-	RetrievePlans(RetrievePlanOptions) ([]Plan, error)
-	RetrievePlanByName(string) (*apiv1beta1.ClusterServicePlan, error)
-	RetrievePlanByID(string) (*apiv1beta1.ClusterServicePlan, error)
-	RetrievePlanByClassAndPlanNames(string, string) (*apiv1beta1.ClusterServicePlan, error)
+	RetrievePlans(string, ScopeOptions) ([]Plan, error)
+	RetrievePlanByName(string, ScopeOptions) (Plan, error)
+	RetrievePlanByClassAndName(string, string, ScopeOptions) (Plan, error)
+	RetrievePlanByClassIDAndName(string, string, ScopeOptions) (Plan, error)
+	RetrievePlanByID(string, ScopeOptions) (Plan, error)
 
 	RetrieveSecretByBinding(*apiv1beta1.ServiceBinding) (*apicorev1.Secret, error)
 

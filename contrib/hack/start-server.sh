@@ -35,7 +35,7 @@ echo ${PORT}
 # And now our API Server
 echo Starting the API Server
 docker run -d --name apiserver \
-	-v ${ROOT}:/go/src/github.com/kubernetes-incubator/service-catalog \
+	-v ${ROOT}:/go/src/github.com/kubernetes-sigs/service-catalog \
 	-v ${ROOT}/.var/run/kubernetes-service-catalog:/var/run/kubernetes-service-catalog \
 	-v ${ROOT}/.kube:/root/.kube \
 	-e KUBERNETES_SERVICE_HOST=localhost \
@@ -45,7 +45,7 @@ docker run -d --name apiserver \
 	--net container:etcd-svc-cat \
 	scbuildimage \
 	bin/service-catalog apiserver -v 10 --logtostderr --etcd-servers http://localhost:2379 \
-		--storage-type=etcd --disable-auth \
+		--disable-auth \
     --feature-gates "PodPreset=true" \
     --feature-gates "NamespacedServiceBroker=true" \
     --feature-gates "ServicePlanDefaults=true"

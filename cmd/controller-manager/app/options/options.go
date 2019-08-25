@@ -26,10 +26,10 @@ import (
 	"github.com/spf13/pflag"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/componentconfig"
-	"github.com/kubernetes-incubator/service-catalog/pkg/controller"
-	k8scomponentconfig "github.com/kubernetes-incubator/service-catalog/pkg/kubernetes/pkg/apis/componentconfig"
-	"github.com/kubernetes-incubator/service-catalog/pkg/kubernetes/pkg/client/leaderelectionconfig"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/componentconfig"
+	"github.com/kubernetes-sigs/service-catalog/pkg/controller"
+	k8scomponentconfig "github.com/kubernetes-sigs/service-catalog/pkg/kubernetes/pkg/apis/componentconfig"
+	"github.com/kubernetes-sigs/service-catalog/pkg/kubernetes/pkg/client/leaderelectionconfig"
 	osb "github.com/pmorie/go-open-service-broker-client/v2"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 )
@@ -60,6 +60,7 @@ const (
 	defaultLeaderElectionNamespace                = "kube-system"
 	defaultReconciliationRetryDuration            = 7 * 24 * time.Hour
 	defaultOperationPollingMaximumBackoffDuration = 20 * time.Minute
+	defaultOSBAPITimeOut                          = 60 * time.Second
 )
 
 var defaultOSBAPIPreferredVersion = osb.LatestAPIVersion().HeaderValue()
@@ -78,6 +79,7 @@ func NewControllerManagerServer() *ControllerManagerServer {
 			ServiceBrokerRelistInterval:            defaultServiceBrokerRelistInterval,
 			OSBAPIContextProfile:                   defaultOSBAPIContextProfile,
 			OSBAPIPreferredVersion:                 defaultOSBAPIPreferredVersion,
+			OSBAPITimeOut:                          defaultOSBAPITimeOut,
 			ConcurrentSyncs:                        defaultConcurrentSyncs,
 			LeaderElection:                         leaderelectionconfig.DefaultLeaderElectionConfiguration(),
 			LeaderElectionNamespace:                defaultLeaderElectionNamespace,
@@ -88,7 +90,7 @@ func NewControllerManagerServer() *ControllerManagerServer {
 			SecureServingOptions:                   genericoptions.NewSecureServingOptions(),
 		},
 	}
-	// set defaults, these will be overriden by user specified flags
+	// set defaults, these will be overridden by user specified flags
 	s.SecureServingOptions.BindPort = defaultPort
 	s.SecureServingOptions.ServerCert.CertDirectory = certDirectory
 	s.LeaderElection.LeaderElect = true
@@ -100,6 +102,7 @@ func (s *ControllerManagerServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(k8scomponentconfig.IPVar{Val: &s.Address}, "address", "DEPRECATED: see --bind-address instead")
 	fs.MarkDeprecated("address", "see --bind-address instead")
 	fs.Int32Var(&s.Port, "port", 0, "DEPRECATED: see --secure-port instead")
+	fs.IntVar(&s.ConcurrentSyncs, "concurrent-syncs", defaultConcurrentSyncs, "Number of concurrent syncs")
 	fs.MarkDeprecated("port", "see --secure-port instead")
 	fs.StringVar(&s.ContentType, "api-content-type", s.ContentType, "Content type of requests sent to API servers")
 	fs.StringVar(&s.K8sAPIServerURL, "k8s-api-server-url", "", "The URL for the k8s API server")
@@ -118,8 +121,9 @@ func (s *ControllerManagerServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.LeaderElectionNamespace, "leader-election-namespace", s.LeaderElectionNamespace, "Namespace to use for leader election lock")
 	fs.DurationVar(&s.ReconciliationRetryDuration, "reconciliation-retry-duration", s.ReconciliationRetryDuration, "The maximum amount of time to retry reconciliations on a resource before failing")
 	fs.DurationVar(&s.OperationPollingMaximumBackoffDuration, "operation-polling-maximum-backoff-duration", s.OperationPollingMaximumBackoffDuration, "The maximum amount of time to back-off while polling an OSB API operation")
+	fs.DurationVar(&s.OSBAPITimeOut, "osb-api-request-timeout", s.OSBAPITimeOut, "The maximum amount of timeout to any request to the broker.")
 	s.SecureServingOptions.AddFlags(fs)
-	utilfeature.DefaultFeatureGate.AddFlag(fs)
+	utilfeature.DefaultMutableFeatureGate.AddFlag(fs)
 	fs.StringVar(&s.ClusterIDConfigMapName, "cluster-id-configmap-name", controller.DefaultClusterIDConfigMapName, "k8s name for clusterid configmap")
 	fs.StringVar(&s.ClusterIDConfigMapNamespace, "cluster-id-configmap-namespace", controller.DefaultClusterIDConfigMapNamespace, "k8s namespace for clusterid configmap")
 }

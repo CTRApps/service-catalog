@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	scfeatures "github.com/kubernetes-incubator/service-catalog/pkg/features"
-	sctestutil "github.com/kubernetes-incubator/service-catalog/test/util"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	scfeatures "github.com/kubernetes-sigs/service-catalog/pkg/features"
+	sctestutil "github.com/kubernetes-sigs/service-catalog/test/util"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -167,7 +167,7 @@ func TestInstanceUpdate(t *testing.T) {
 func TestInstanceUserInfo(t *testing.T) {
 	// Enable the OriginatingIdentity feature
 	prevOrigIDEnablement := sctestutil.EnableOriginatingIdentity(t, true)
-	defer utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=%v", scfeatures.OriginatingIdentity, prevOrigIDEnablement))
+	defer utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=%v", scfeatures.OriginatingIdentity, prevOrigIDEnablement))
 
 	creatorUserName := "creator"
 	createdInstance := getTestInstance()

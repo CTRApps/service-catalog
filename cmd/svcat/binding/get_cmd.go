@@ -17,8 +17,8 @@ limitations under the License.
 package binding
 
 import (
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +37,7 @@ func NewGetCmd(cxt *command.Context) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "bindings [NAME]",
 		Aliases: []string{"binding", "bnd"},
-		Short:   "List bindings, optionally filtered by name",
+		Short:   "List bindings, optionally filtered by name or namespace",
 		Example: command.NormalizeExamples(`
   svcat get bindings
   svcat get bindings --all-namespaces
@@ -53,6 +53,7 @@ func NewGetCmd(cxt *command.Context) *cobra.Command {
 	return cmd
 }
 
+// Validate checks that the required arguments have been provided
 func (c *getCmd) Validate(args []string) error {
 	if len(args) > 0 {
 		c.name = args[0]
@@ -61,6 +62,8 @@ func (c *getCmd) Validate(args []string) error {
 	return nil
 }
 
+// Run get all bindings when the name of the getcmd is not empty,
+// otherwise get single.
 func (c *getCmd) Run() error {
 	if c.name == "" {
 		return c.getAll()

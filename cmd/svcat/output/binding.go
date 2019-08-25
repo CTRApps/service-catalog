@@ -21,8 +21,8 @@ import (
 	"io"
 	"sort"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	svcatsdk "github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	svcatsdk "github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"k8s.io/api/core/v1"
 )
 
@@ -49,7 +49,7 @@ func writeBindingListTable(w io.Writer, bindingList *v1beta1.ServiceBindingList)
 		t.Append([]string{
 			binding.Name,
 			binding.Namespace,
-			binding.Spec.ServiceInstanceRef.Name,
+			binding.Spec.InstanceRef.Name,
 			getBindingStatusShort(binding.Status),
 		})
 	}
@@ -91,7 +91,7 @@ func WriteBindingDetails(w io.Writer, binding *v1beta1.ServiceBinding) {
 		{"Namespace:", binding.Namespace},
 		{"Status:", getBindingStatusFull(binding.Status)},
 		{"Secret:", binding.Spec.SecretName},
-		{"Instance:", binding.Spec.ServiceInstanceRef.Name},
+		{"Instance:", binding.Spec.InstanceRef.Name},
 	})
 	t.Render()
 

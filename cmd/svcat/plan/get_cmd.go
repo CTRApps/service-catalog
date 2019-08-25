@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,29 +20,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	"github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
+	"github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"github.com/spf13/cobra"
 )
 
-type getCmd struct {
+// GetCmd contains the information needed to get a specific plan or all plans
+type GetCmd struct {
 	*command.Namespaced
 	*command.Scoped
 	*command.Formatted
-	lookupByUUID bool
-	uuid         string
-	name         string
+	LookupByKubeName bool
+	KubeName         string
+	Name             string
 
-	classFilter string
-	classUUID   string
-	className   string
+	ClassFilter   string
+	ClassKubeName string
+	ClassName     string
 }
 
 // NewGetCmd builds a "svcat get plans" command
 func NewGetCmd(ctx *command.Context) *cobra.Command {
-	getCmd := &getCmd{
+	getCmd := &GetCmd{
 		Namespaced: command.NewNamespaced(ctx),
 		Scoped:     command.NewScoped(),
 		Formatted:  command.NewFormatted(),
@@ -57,28 +57,28 @@ func NewGetCmd(ctx *command.Context) *cobra.Command {
   svcat get plans --scope namespace --namespace dev
   svcat get plan PLAN_NAME
   svcat get plan CLASS_NAME/PLAN_NAME
-  svcat get plan --uuid PLAN_UUID
+  svcat get plan --kube-name PLAN_KUBE_NAME
   svcat get plans --class CLASS_NAME
   svcat get plan --class CLASS_NAME PLAN_NAME
-  svcat get plans --uuid --class CLASS_UUID
-  svcat get plan --uuid --class CLASS_UUID PLAN_UUID
+  svcat get plans --kube-name --class CLASS_KUBE_NAME
+  svcat get plan --kube-name --class CLASS_KUBE_NAME PLAN_KUBE_NAME
 `),
 		PreRunE: command.PreRunE(getCmd),
 		RunE:    command.RunE(getCmd),
 	}
 	cmd.Flags().BoolVarP(
-		&getCmd.lookupByUUID,
-		"uuid",
-		"u",
+		&getCmd.LookupByKubeName,
+		"kube-name",
+		"k",
 		false,
-		"Whether or not to get the plan by UUID (the default is by name)",
+		"Whether or not to get the plan by its Kubernetes name (the default is by external name)",
 	)
 	cmd.Flags().StringVarP(
-		&getCmd.classFilter,
+		&getCmd.ClassFilter,
 		"class",
 		"c",
 		"",
-		"Filter plans based on class. When --uuid is specified, the class name is interpreted as a uuid.",
+		"Filter plans based on class. When --kube-name is specified, the class name is interpreted as a kubernetes name.",
 	)
 	getCmd.AddOutputFlags(cmd.Flags())
 	getCmd.AddNamespaceFlags(cmd.Flags(), true)
@@ -86,42 +86,53 @@ func NewGetCmd(ctx *command.Context) *cobra.Command {
 	return cmd
 }
 
-func (c *getCmd) Validate(args []string) error {
+// Validate parses the provided arugments and errors if they are formatted incorrectly
+func (c *GetCmd) Validate(args []string) error {
 	if len(args) > 0 {
-		if c.lookupByUUID {
-			c.uuid = args[0]
+		if c.LookupByKubeName {
+			if strings.Contains(args[0], "/") {
+				names := strings.Split(args[0], "/")
+				if len(names) != 2 {
+					return fmt.Errorf("failed to parse class/plan k8s name combination '%s'", args[0])
+				}
+				c.ClassKubeName = names[0]
+				c.KubeName = names[1]
+			} else {
+				c.KubeName = args[0]
+			}
 		} else if strings.Contains(args[0], "/") {
 			names := strings.Split(args[0], "/")
 			if len(names) != 2 {
-				return fmt.Errorf("failed to parse class/plan name combination '%s'", c.name)
+				return fmt.Errorf("failed to parse class/plan name combination '%s'", args[0])
 			}
-			c.className = names[0]
-			c.name = names[1]
+			c.ClassName = names[0]
+			c.Name = names[1]
 		} else {
-			c.name = args[0]
+			c.Name = args[0]
 		}
 	}
-	if c.classFilter != "" {
-		if c.lookupByUUID {
-			c.classUUID = c.classFilter
+	if c.ClassFilter != "" {
+		if c.LookupByKubeName {
+			c.ClassKubeName = c.ClassFilter
 		} else {
-			c.className = c.classFilter
+			c.ClassName = c.ClassFilter
 		}
 	}
 
 	return nil
 }
 
-func (c *getCmd) Run() error {
-	if c.uuid == "" && c.name == "" {
+// Run determines if we are fetching all plans or a specific one, and calls
+// the corresponding method
+func (c *GetCmd) Run() error {
+	if c.KubeName == "" && c.Name == "" {
 		return c.getAll()
 	}
 
 	return c.get()
 }
 
-func (c *getCmd) getAll() error {
-
+func (c *GetCmd) getAll() error {
 	// Retrieve the classes as well because plans don't have the external class name
 	classOpts := servicecatalog.ScopeOptions{
 		Namespace: c.Namespace,
@@ -132,56 +143,62 @@ func (c *getCmd) getAll() error {
 		return fmt.Errorf("unable to list classes (%s)", err)
 	}
 
-	opts := servicecatalog.RetrievePlanOptions{
+	var classID string
+	opts := servicecatalog.ScopeOptions{
 		Namespace: c.Namespace,
 		Scope:     c.Scope,
 	}
-	if c.classFilter != "" {
-		if !c.lookupByUUID {
+	if c.ClassFilter != "" {
+		if !c.LookupByKubeName {
 			// Map the external class name to the class name.
 			for _, class := range classes {
-				if c.className == class.GetExternalName() {
-					c.classUUID = class.GetName()
+				if c.ClassName == class.GetExternalName() {
+					c.ClassKubeName = class.GetName()
 					break
 				}
 			}
 		}
-		opts.ClassID = c.classUUID
+		classID = c.ClassKubeName
 	}
 
-	plans, err := c.App.RetrievePlans(opts)
+	plans, err := c.App.RetrievePlans(classID, opts)
 	if err != nil {
 		return fmt.Errorf("unable to list plans (%s)", err)
 	}
-
 	output.WritePlanList(c.Output, c.OutputFormat, plans, classes)
 	return nil
 }
 
-func (c *getCmd) get() error {
-	var plan *v1beta1.ClusterServicePlan
+func (c *GetCmd) get() error {
+	var plan servicecatalog.Plan
 	var err error
-	switch {
-	case c.lookupByUUID:
-		plan, err = c.App.RetrievePlanByID(c.uuid)
 
-	case c.className != "":
-		plan, err = c.App.RetrievePlanByClassAndPlanNames(c.className, c.name)
+	opts := servicecatalog.ScopeOptions{
+		Namespace: c.Namespace,
+		Scope:     c.Scope,
+	}
+
+	switch {
+	case c.LookupByKubeName:
+		plan, err = c.App.RetrievePlanByID(c.KubeName, opts)
+
+	case c.ClassName != "":
+		plan, err = c.App.RetrievePlanByClassAndName(c.ClassName, c.Name, opts)
 
 	default:
-		plan, err = c.App.RetrievePlanByName(c.name)
+		plan, err = c.App.RetrievePlanByName(c.Name, opts)
 
 	}
 	if err != nil {
 		return err
 	}
 	// Retrieve the class as well because plans don't have the external class name
-	class, err := c.App.RetrieveClassByID(plan.Spec.ClusterServiceClassRef.Name)
+	class, err := c.App.RetrieveClassByID(plan.GetClassID(), opts)
 	if err != nil {
 		return err
 	}
 
-	output.WritePlan(c.Output, c.OutputFormat, *plan, *class)
+	output.WritePlan(c.Output, c.OutputFormat, plan, class)
 
 	return nil
 }

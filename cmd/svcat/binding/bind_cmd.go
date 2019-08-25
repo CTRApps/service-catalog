@@ -19,9 +19,9 @@ package binding
 import (
 	"fmt"
 
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/parameters"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/parameters"
 	"github.com/spf13/cobra"
 )
 
@@ -94,6 +94,7 @@ func NewBindCmd(cxt *command.Context) *cobra.Command {
 	return cmd
 }
 
+// Validate checks that the required arguments have been provided
 func (c *bindCmd) Validate(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("an instance name is required")
@@ -126,6 +127,8 @@ func (c *bindCmd) Validate(args []string) error {
 	return nil
 }
 
+// Run creates the binding.
+// An error returned when failed.
 func (c *bindCmd) Run() error {
 	return c.bind()
 }

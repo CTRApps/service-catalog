@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/api"
+	"github.com/kubernetes-sigs/service-catalog/pkg/api"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/server/resourceconfig"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
-	utilflag "k8s.io/apiserver/pkg/util/flag"
+	utilflag "k8s.io/component-base/cli/flag"
 )
 
 // NewStorageFactory builds the DefaultStorageFactory.
@@ -36,8 +36,7 @@ func NewStorageFactory(storageConfig storagebackend.Config, defaultMediaType str
 	defaultResourceEncoding *serverstorage.DefaultResourceEncodingConfig, storageEncodingOverrides map[string]schema.GroupVersion, resourceEncodingOverrides []schema.GroupVersionResource,
 	defaultAPIResourceConfig *serverstorage.ResourceConfig, resourceConfigOverrides utilflag.ConfigurationMap) (*serverstorage.DefaultStorageFactory, error) {
 
-	resourceEncodingConfig := mergeGroupEncodingConfigs(defaultResourceEncoding, storageEncodingOverrides)
-	resourceEncodingConfig = mergeResourceEncodingConfigs(resourceEncodingConfig, resourceEncodingOverrides)
+	resourceEncodingConfig := mergeResourceEncodingConfigs(defaultResourceEncoding, resourceEncodingOverrides)
 	apiResourceConfig, err := resourceconfig.MergeAPIResourceConfigs(defaultAPIResourceConfig, resourceConfigOverrides, api.Scheme)
 	if err != nil {
 		return nil, err
@@ -45,21 +44,12 @@ func NewStorageFactory(storageConfig storagebackend.Config, defaultMediaType str
 	return serverstorage.NewDefaultStorageFactory(storageConfig, defaultMediaType, serializer, resourceEncodingConfig, apiResourceConfig, nil), nil
 }
 
-// Merges the given defaultResourceConfig with specifc GroupvVersionResource overrides.
+// Merges the given defaultResourceConfig with specific GroupvVersionResource overrides.
 func mergeResourceEncodingConfigs(defaultResourceEncoding *serverstorage.DefaultResourceEncodingConfig, resourceEncodingOverrides []schema.GroupVersionResource) *serverstorage.DefaultResourceEncodingConfig {
 	resourceEncodingConfig := defaultResourceEncoding
 	for _, gvr := range resourceEncodingOverrides {
 		resourceEncodingConfig.SetResourceEncoding(gvr.GroupResource(), gvr.GroupVersion(),
 			schema.GroupVersion{Group: gvr.Group, Version: runtime.APIVersionInternal})
-	}
-	return resourceEncodingConfig
-}
-
-// Merges the given defaultResourceConfig with specifc GroupVersion overrides.
-func mergeGroupEncodingConfigs(defaultResourceEncoding *serverstorage.DefaultResourceEncodingConfig, storageEncodingOverrides map[string]schema.GroupVersion) *serverstorage.DefaultResourceEncodingConfig {
-	resourceEncodingConfig := defaultResourceEncoding
-	for group, storageEncodingVersion := range storageEncodingOverrides {
-		resourceEncodingConfig.SetVersionEncoding(group, storageEncodingVersion, schema.GroupVersion{Group: group, Version: runtime.APIVersionInternal})
 	}
 	return resourceEncodingConfig
 }

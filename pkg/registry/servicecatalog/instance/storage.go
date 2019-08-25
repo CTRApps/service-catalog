@@ -21,10 +21,10 @@ import (
 	"errors"
 	"fmt"
 
-	scmeta "github.com/kubernetes-incubator/service-catalog/pkg/api/meta"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/server"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/tableconvertor"
+	scmeta "github.com/kubernetes-sigs/service-catalog/pkg/api/meta"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/server"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/tableconvertor"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -104,12 +104,12 @@ func toSelectableFields(instance *servicecatalog.ServiceInstance) fields.Set {
 }
 
 // GetAttrs returns labels and fields of a given object for filtering purposes.
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, bool, error) {
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	instance, ok := obj.(*servicecatalog.ServiceInstance)
 	if !ok {
-		return nil, nil, false, fmt.Errorf("given object is not an ServiceInstance")
+		return nil, nil, fmt.Errorf("given object is not an ServiceInstance")
 	}
-	return labels.Set(instance.ObjectMeta.Labels), toSelectableFields(instance), instance.Initializers != nil, nil
+	return labels.Set(instance.ObjectMeta.Labels), toSelectableFields(instance), nil
 }
 
 // NewStorage creates a new rest.Storage responsible for accessing ServiceInstance
@@ -118,9 +118,9 @@ func NewStorage(opts server.Options) (rest.Storage, rest.Storage, rest.Storage) 
 	prefix := "/" + opts.ResourcePrefix()
 
 	storageInterface, dFunc := opts.GetStorage(
-		&servicecatalog.ServiceInstance{},
 		prefix,
 		instanceRESTStrategies,
+		EmptyObject,
 		NewList,
 		nil,
 		storage.NoTriggerPublisher,
@@ -231,8 +231,8 @@ var (
 
 // Update alters the status subset of an object and it
 // implements rest.Updater interface
-func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc) (runtime.Object, bool, error) {
-	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation)
+func (r *StatusREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
+	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 }
 
 // ReferenceREST defines the REST operations for the reference subresource.
@@ -253,6 +253,6 @@ func (r *ReferenceREST) Get(ctx context.Context, name string, options *metav1.Ge
 
 // Update alters the reference subset of an object and it
 // implements rest.Updater interface
-func (r *ReferenceREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc) (runtime.Object, bool, error) {
-	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation)
+func (r *ReferenceREST) Update(ctx context.Context, name string, objInfo rest.UpdatedObjectInfo, createValidation rest.ValidateObjectFunc, updateValidation rest.ValidateObjectUpdateFunc, forceAllowCreate bool, options *metav1.UpdateOptions) (runtime.Object, bool, error) {
+	return r.store.Update(ctx, name, objInfo, createValidation, updateValidation, forceAllowCreate, options)
 }

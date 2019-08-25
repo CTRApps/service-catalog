@@ -21,14 +21,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/features"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/server"
+	"github.com/kubernetes-sigs/service-catalog/pkg/features"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	settingsapi "github.com/kubernetes-incubator/service-catalog/pkg/apis/settings/v1alpha1"
+	settingsapi "github.com/kubernetes-sigs/service-catalog/pkg/apis/settings/v1alpha1"
 	// our versioned client
-	servicecatalogclient "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset"
+	servicecatalogclient "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
@@ -39,40 +38,32 @@ func TestPodPresetClient(t *testing.T) {
 	// enable PodPreset APIs since they aren't enabled by default
 	enablePodPresetFeature()
 	defer disablePodPresetFeature()
-	rootTestFunc := func(sType server.StorageType) func(t *testing.T) {
-		return func(t *testing.T) {
-			const name = "test-podpreset"
 
-			client, _, shutdown := getFreshApiserverAndClient(t, sType.String(), func() runtime.Object {
-				return &settingsapi.PodPreset{}
-			})
-			defer shutdown()
+	const name = "test-podpreset"
 
-			if err := testPodPresetClient(sType, client, name); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	for _, sType := range []server.StorageType{server.StorageTypeEtcd} {
-		if !t.Run(sType.String(), rootTestFunc(sType)) {
-			t.Errorf("%s test failed", sType)
-		}
+	client, _, shutdown := getFreshApiserverAndClient(t, func() runtime.Object {
+		return &settingsapi.PodPreset{}
+	})
+	defer shutdown()
+
+	if err := testPodPresetClient(client, name); err != nil {
+		t.Fatal(err)
 	}
 }
 
 func enablePodPresetFeature() {
-	utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", features.PodPreset))
+	utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", features.PodPreset))
 }
 
 func disablePodPresetFeature() {
-	utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", features.PodPreset))
+	utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", features.PodPreset))
 }
 
-func testPodPresetClient(sType server.StorageType, client servicecatalogclient.Interface, name string) error {
+func testPodPresetClient(client servicecatalogclient.Interface, name string) error {
 	testNamespace := "test-namespace"
 	podPresetName := "test-podpreset"
 
-	cl := client.Settings().PodPresets(testNamespace)
+	cl := client.SettingsV1alpha1().PodPresets(testNamespace)
 
 	// table driven tests for podpresets so that we can expand the input dataset
 	tests := []struct{ input *settingsapi.PodPreset }{

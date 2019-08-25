@@ -32,23 +32,22 @@ import (
 	"k8s.io/apiserver/pkg/storage/storagebackend/factory"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 
-	scfeatures "github.com/kubernetes-incubator/service-catalog/pkg/features"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/binding"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/clusterservicebroker"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/clusterserviceclass"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/clusterserviceplan"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/instance"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/server"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/servicebroker"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/serviceclass"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/serviceplan"
+	scfeatures "github.com/kubernetes-sigs/service-catalog/pkg/features"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/binding"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/clusterservicebroker"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/clusterserviceclass"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/clusterserviceplan"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/instance"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/servicebroker"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/serviceclass"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/serviceplan"
 )
 
 var _ = Describe("ensure that our storage types implement the appropriate interfaces", func() {
 	It("checks v1beta1 standard storage", func() {
 
-		defer utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.NamespacedServiceBroker))
-		Expect(utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.NamespacedServiceBroker))).Should(Succeed())
+		defer utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.NamespacedServiceBroker))
+		Expect(utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.NamespacedServiceBroker))).Should(Succeed())
 
 		checkStorageType := func(t GinkgoTInterface, s rest.Storage) {
 			// Our normal stores are all of these things
@@ -83,7 +82,6 @@ var _ = Describe("ensure that our storage types implement the appropriate interf
 
 		provider := StorageProvider{
 			DefaultNamespace: "test-default",
-			StorageType:      server.StorageTypeEtcd,
 			RESTClient:       nil,
 		}
 		configSource := serverstorage.NewResourceConfig()
@@ -171,9 +169,9 @@ func (g GetRESTOptionsHelper) GetRESTOptions(resource schema.GroupResource) (gen
 		StorageConfig:  &storagebackend.Config{},
 		Decorator: generic.StorageDecorator(func(
 			config *storagebackend.Config,
-			objectType runtime.Object,
 			resourcePrefix string,
 			keyFunc func(obj runtime.Object) (string, error),
+			newFunc func() runtime.Object,
 			newListFunc func() runtime.Object,
 			getAttrsFunc storage.AttrFunc,
 			trigger storage.TriggerPublisherFunc,

@@ -6,7 +6,7 @@ for use demonstrating the Kubernetes
 Service Catalog.
 
 For more information,
-[visit the Service Catalog project on github](https://github.com/kubernetes-incubator/service-catalog).
+[visit the Service Catalog project on github](https://github.com/kubernetes-sigs/service-catalog).
 
 ## Installing the Chart
 
@@ -34,7 +34,7 @@ Service Broker
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `image` | Image to use | `quay.io/kubernetes-service-catalog/user-broker:v0.1.32` |
+| `image` | Image to use | `quay.io/kubernetes-service-catalog/user-broker:v0.2.1` |
 | `imagePullPolicy` | `imagePullPolicy` for the ups-broker | `Always` |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to

@@ -21,7 +21,7 @@ import (
 
 	"errors"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"github.com/spf13/pflag"
 )
 
@@ -54,9 +54,9 @@ func NewScoped() *Scoped {
 func (c *Scoped) AddScopedFlags(flags *pflag.FlagSet, allowAll bool) {
 	c.allowAll = allowAll
 	if allowAll {
-		flags.StringVar(&c.rawScope, "scope", servicecatalog.AllScope, "Limit the results to a particular scope: cluster, namespace or all")
+		flags.StringVar(&c.rawScope, "scope", servicecatalog.AllScope, "Limit the command to a particular scope: cluster, namespace or all")
 	} else {
-		flags.StringVar(&c.rawScope, "scope", servicecatalog.NamespaceScope, "Limit the results to a particular scope: cluster, namespace")
+		flags.StringVar(&c.rawScope, "scope", servicecatalog.NamespaceScope, "Limit the command to a particular scope: cluster or namespace")
 	}
 }
 

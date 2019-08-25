@@ -23,10 +23,11 @@
   <div id="vendorStrip" class="light-text">
     <ul>
       <li><a href="/docs/" {% if toc.bigheader == nil %}class="YAH"{% endif %}>HOME</a></li>
+      <li><a href="/docs/concepts" {% if toc.bigheader == "Concepts" %}class="YAH"{% endif %}>CONCEPTS</a></li>
+      <li><a href="/docs/tasks" {% if toc.bigheader == "Tasks" %}class="YAH"{% endif %}>TASKS</a></li>
       <li><a href="/docs/install" {% if toc.bigheader == "Install" %}class="YAH"{% endif %}>INSTALL</a></li>
-        <li><a href="/docs/walkthrough" {% if toc.bigheader == "Walkthrough" %}class="YAH"{% endif %}>WALKTHROUGH</a></li>
-        <li><a href="/docs/cli" {% if toc.bigheader == "CLI" %}class="YAH"{% endif %}>CLI</a></li>
-        <li><a href="/docs/concepts" {% if toc.bigheader == "Concepts" %}class="YAH"{% endif %}>CONCEPTS</a></li>
+      <li><a href="/docs/walkthrough" {% if toc.bigheader == "Walkthrough" %}class="YAH"{% endif %}>WALKTHROUGH</a></li>
+      <li><a href="/docs/cli" {% if toc.bigheader == "CLI" %}class="YAH"{% endif %}>CLI</a></li>
     </ul>
     <div id="searchBox">
       <input type="text" id="search" placeholder="Search" onkeydown="if (event.keyCode==13) window.location.replace('/docs/search/?q=' + this.value)" autofocus="autofocus">
@@ -54,7 +55,7 @@
         {{ content }}
 
         {% unless page.no_issue %}
-           <a href="" onclick="window.open('https://github.com/kubernetes-incubator/service-catalog/issues/new?title=Issue%20with%20' +
+           <a href="" onclick="window.open('https://github.com/kubernetes-sigs/service-catalog/issues/new?title=Issue%20with%20' +
            'svc-cat.io'+window.location.pathname)" class="button issue">Create an Issue</a>
         {% endunless %}
         {% unless page.noedit %}

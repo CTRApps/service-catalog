@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset"
-	servicecataloginternalversion "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset/typed/servicecatalog/internalversion"
-	fakeservicecataloginternalversion "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset/typed/servicecatalog/internalversion/fake"
-	settingsinternalversion "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset/typed/settings/internalversion"
-	fakesettingsinternalversion "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/internalclientset/typed/settings/internalversion/fake"
+	clientset "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset"
+	servicecataloginternalversion "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset/typed/servicecatalog/internalversion"
+	fakeservicecataloginternalversion "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset/typed/servicecatalog/internalversion/fake"
+	settingsinternalversion "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset/typed/settings/internalversion"
+	fakesettingsinternalversion "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/internalclientset/typed/settings/internalversion/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -43,7 +43,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 		}
 	}
 
-	cs := &Clientset{}
+	cs := &Clientset{tracker: o}
 	cs.discovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
 	cs.AddReactor("*", "*", testing.ObjectReaction(o))
 	cs.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
@@ -65,10 +65,15 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 type Clientset struct {
 	testing.Fake
 	discovery *fakediscovery.FakeDiscovery
+	tracker   testing.ObjectTracker
 }
 
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
+}
+
+func (c *Clientset) Tracker() testing.ObjectTracker {
+	return c.tracker
 }
 
 var _ clientset.Interface = &Clientset{}

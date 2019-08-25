@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	api "github.com/kubernetes-incubator/service-catalog/pkg/api"
+	api "github.com/kubernetes-sigs/service-catalog/pkg/api"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,8 +30,8 @@ import (
 	apistorage "k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/settings"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/settings/validation"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/settings"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/settings/validation"
 )
 
 // NewScopeStrategy returns a new NamespaceScopedStrategy for PodPreset.
@@ -106,12 +106,12 @@ func SelectableFields(pip *settings.PodPreset) fields.Set {
 }
 
 // GetAttrs returns labels and fields of a given object for filtering purposes.
-func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, bool, error) {
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
 	pip, ok := obj.(*settings.PodPreset)
 	if !ok {
-		return nil, nil, false, fmt.Errorf("given object is not a podpreset")
+		return nil, nil, fmt.Errorf("given object is not a podpreset")
 	}
-	return labels.Set(pip.ObjectMeta.Labels), SelectableFields(pip), pip.Initializers != nil, nil
+	return labels.Set(pip.ObjectMeta.Labels), SelectableFields(pip), nil
 }
 
 // Matcher is the filter used by the generic etcd backend to watch events

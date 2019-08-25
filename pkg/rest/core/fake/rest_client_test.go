@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	_ "github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/install"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/testapi"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	_ "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/install"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/testapi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -120,7 +120,7 @@ func TestResponseWriterGetResponse(t *testing.T) {
 	rw.WriteHeader(http.StatusFound)
 
 	if response := rw.getResponse(); response.StatusCode != http.StatusFound {
-		t.Fatal("Expected", 0, "got", response.StatusCode)
+		t.Fatal("Expected", http.StatusFound, "got", response.StatusCode)
 	}
 }
 

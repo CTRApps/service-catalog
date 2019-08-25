@@ -19,8 +19,8 @@ package servicebroker
 import (
 	"testing"
 
-	sc "github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
-	sctestutil "github.com/kubernetes-incubator/service-catalog/test/util"
+	sc "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
+	sctestutil "github.com/kubernetes-sigs/service-catalog/test/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -106,15 +106,15 @@ func TestServiceBrokerUpdate(t *testing.T) {
 		shouldGenerationIncrement bool
 	}{
 		{
-			name:  "no spec change",
-			older: serviceBrokerWithOldSpec(),
-			newer: serviceBrokerWithOldSpec(),
+			name:                      "no spec change",
+			older:                     serviceBrokerWithOldSpec(),
+			newer:                     serviceBrokerWithOldSpec(),
 			shouldGenerationIncrement: false,
 		},
 		{
-			name:  "spec change",
-			older: serviceBrokerWithOldSpec(),
-			newer: serviceBrokerWithNewSpec(),
+			name:                      "spec change",
+			older:                     serviceBrokerWithOldSpec(),
+			newer:                     serviceBrokerWithNewSpec(),
 			shouldGenerationIncrement: true,
 		},
 	}

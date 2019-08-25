@@ -21,16 +21,17 @@ import (
 	"math"
 	"time"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
-	// FieldServicePlanRef is the jsonpath to an instance's plan name (uuid).
+	// FieldServicePlanRef is the jsonpath to an instance's plan name (Kubernetes name).
 	FieldServicePlanRef = "spec.clusterServicePlanRef.name"
 )
 
@@ -77,7 +78,7 @@ func (sdk *SDK) RetrieveInstance(ns, name string) (*v1beta1.ServiceInstance, err
 func (sdk *SDK) RetrieveInstanceByBinding(b *v1beta1.ServiceBinding,
 ) (*v1beta1.ServiceInstance, error) {
 	ns := b.Namespace
-	instName := b.Spec.ServiceInstanceRef.Name
+	instName := b.Spec.InstanceRef.Name
 	inst, err := sdk.ServiceCatalog().ServiceInstances(ns).Get(instName, v1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -86,10 +87,9 @@ func (sdk *SDK) RetrieveInstanceByBinding(b *v1beta1.ServiceBinding,
 }
 
 // RetrieveInstancesByPlan retrieves all instances of a plan.
-func (sdk *SDK) RetrieveInstancesByPlan(plan *v1beta1.ClusterServicePlan,
-) ([]v1beta1.ServiceInstance, error) {
+func (sdk *SDK) RetrieveInstancesByPlan(plan Plan) ([]v1beta1.ServiceInstance, error) {
 	planOpts := v1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(FieldServicePlanRef, plan.Name).String(),
+		FieldSelector: fields.OneTermEqualSelector(FieldServicePlanRef, plan.GetName()).String(),
 	}
 	instances, err := sdk.ServiceCatalog().ServiceInstances("").List(planOpts)
 	if err != nil {
@@ -165,27 +165,45 @@ func (sdk *SDK) InstanceToServiceClassAndPlan(instance *v1beta1.ServiceInstance,
 	}
 }
 
-// Provision creates an instance of a service class and plan.
-func (sdk *SDK) Provision(namespace, instanceName, externalID, className, planName string,
-	params interface{}, secrets map[string]string) (*v1beta1.ServiceInstance, error) {
-
-	request := &v1beta1.ServiceInstance{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      instanceName,
-			Namespace: namespace,
-		},
-		Spec: v1beta1.ServiceInstanceSpec{
-			ExternalID: externalID,
-			PlanReference: v1beta1.PlanReference{
-				ClusterServiceClassExternalName: className,
-				ClusterServicePlanExternalName:  planName,
+// Provision creates an instance of a specific service class and plan specified
+// by their k8s names. Depending on provisionClusterInstance, it will create either
+// an instance of a cluster class/plan or a namespaced class/plan
+func (sdk *SDK) Provision(instanceName, classKubeName, planKubeName string, provisionClusterInstance bool, opts *ProvisionOptions) (*v1beta1.ServiceInstance, error) {
+	var request *v1beta1.ServiceInstance
+	if provisionClusterInstance {
+		request = &v1beta1.ServiceInstance{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      instanceName,
+				Namespace: opts.Namespace,
 			},
-			Parameters:     BuildParameters(params),
-			ParametersFrom: BuildParametersFrom(secrets),
-		},
+			Spec: v1beta1.ServiceInstanceSpec{
+				ExternalID: opts.ExternalID,
+				PlanReference: v1beta1.PlanReference{
+					ClusterServiceClassName: classKubeName,
+					ClusterServicePlanName:  planKubeName,
+				},
+				Parameters:     BuildParameters(opts.Params),
+				ParametersFrom: BuildParametersFrom(opts.Secrets),
+			},
+		}
+	} else {
+		request = &v1beta1.ServiceInstance{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      instanceName,
+				Namespace: opts.Namespace,
+			},
+			Spec: v1beta1.ServiceInstanceSpec{
+				ExternalID: opts.ExternalID,
+				PlanReference: v1beta1.PlanReference{
+					ServiceClassName: classKubeName,
+					ServicePlanName:  planKubeName,
+				},
+				Parameters:     BuildParameters(opts.Params),
+				ParametersFrom: BuildParametersFrom(opts.Secrets),
+			},
+		}
 	}
-
-	result, err := sdk.ServiceCatalog().ServiceInstances(namespace).Create(request)
+	result, err := sdk.ServiceCatalog().ServiceInstances(opts.Namespace).Create(request)
 	if err != nil {
 		return nil, fmt.Errorf("provision request failed (%s)", err)
 	}
@@ -293,4 +311,21 @@ func (sdk *SDK) InstanceHasStatus(instance *v1beta1.ServiceInstance, status v1be
 	}
 
 	return false
+}
+
+// RemoveFinalizerForInstance removes v1beta1.FinalizerServiceCatalog from the specified instance.
+func (sdk *SDK) RemoveFinalizerForInstance(ns, name string) error {
+	instance, err := sdk.RetrieveInstance(ns, name)
+	if err != nil {
+		return err
+	}
+
+	finalizers := sets.NewString(instance.Finalizers...)
+	finalizers.Delete(v1beta1.FinalizerServiceCatalog)
+	instance.Finalizers = finalizers.List()
+	_, err = sdk.ServiceCatalog().ServiceInstances(instance.Namespace).UpdateStatus(instance)
+	if err != nil {
+		return err
+	}
+	return nil
 }

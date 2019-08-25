@@ -28,16 +28,16 @@ import (
 
 	// avoid error `servicecatalog/v1beta1 is not enabled`
 
-	_ "github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/install"
+	_ "github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/install"
 
 	osb "github.com/pmorie/go-open-service-broker-client/v2"
 	fakeosb "github.com/pmorie/go-open-service-broker-client/v2/fake"
 
 	"time"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	scfeatures "github.com/kubernetes-incubator/service-catalog/pkg/features"
-	"github.com/kubernetes-incubator/service-catalog/test/util"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	scfeatures "github.com/kubernetes-sigs/service-catalog/pkg/features"
+	"github.com/kubernetes-sigs/service-catalog/test/util"
 )
 
 // TestCreateServiceBindingSuccess successful paths binding
@@ -91,7 +91,7 @@ func TestCreateServiceBindingInvalidInstanceFailure(t *testing.T) {
 			ct.run(func(ct *controllerTest) {
 				binding := getTestBinding()
 				if tc.instanceName != nil {
-					binding.Spec.ServiceInstanceRef.Name = *tc.instanceName
+					binding.Spec.InstanceRef.Name = *tc.instanceName
 				}
 
 				if _, err := ct.client.ServiceBindings(binding.Namespace).Create(binding); err == nil {
@@ -129,7 +129,7 @@ func TestCreateServiceBindingInvalidInstance(t *testing.T) {
 				binding: func() *v1beta1.ServiceBinding {
 					b := getTestBinding()
 					if tc.instanceName != nil {
-						b.Spec.ServiceInstanceRef.Name = *tc.instanceName
+						b.Spec.InstanceRef.Name = *tc.instanceName
 					}
 					return b
 				}(),
@@ -640,8 +640,8 @@ func TestDeleteServiceBindingFailureRetry(t *testing.T) {
 // retries after failing an asynchronous unbind.
 func TestDeleteServiceBindingFailureRetryAsync(t *testing.T) {
 	// Enable the AsyncBindingOperations feature
-	utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.AsyncBindingOperations))
-	defer utilfeature.DefaultFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.AsyncBindingOperations))
+	utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=true", scfeatures.AsyncBindingOperations))
+	defer utilfeature.DefaultMutableFeatureGate.Set(fmt.Sprintf("%v=false", scfeatures.AsyncBindingOperations))
 
 	hasPollFailed := false
 	ct := &controllerTest{

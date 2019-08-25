@@ -23,7 +23,7 @@ package componentconfig
 import (
 	"time"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/kubernetes/pkg/apis/componentconfig"
+	"github.com/kubernetes-sigs/service-catalog/pkg/kubernetes/pkg/apis/componentconfig"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 )
 
@@ -76,6 +76,9 @@ type ControllerManagerConfiguration struct {
 	// OpenServiceBroker API Context Profile field
 	OSBAPIContextProfile   bool
 	OSBAPIPreferredVersion string
+
+	// OSBAPITimeOut the length of the timeout of any request to the broker.
+	OSBAPITimeOut time.Duration
 
 	// ConcurrentSyncs is the number of resources, per resource type,
 	// that are allowed to sync concurrently. Larger number = more responsive

@@ -18,80 +18,102 @@ package class
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
-	servicecatalog "github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
+	servicecatalog "github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"github.com/spf13/cobra"
 )
 
-type describeCmd struct {
+// DescribeCmd contains the information needed to describe a specific class
+type DescribeCmd struct {
 	*command.Context
-	lookupByUUID bool
-	uuid         string
-	name         string
+	*command.Namespaced
+	*command.Scoped
+
+	LookupByKubeName bool
+	KubeName         string
+	Name             string
 }
 
 // NewDescribeCmd builds a "svcat describe class" command
 func NewDescribeCmd(cxt *command.Context) *cobra.Command {
-	describeCmd := &describeCmd{Context: cxt}
+	describeCmd := &DescribeCmd{
+		Context:    cxt,
+		Namespaced: command.NewNamespaced(cxt),
+		Scoped:     command.NewScoped(),
+	}
 	cmd := &cobra.Command{
 		Use:     "class NAME",
 		Aliases: []string{"classes", "cl"},
 		Short:   "Show details of a specific class",
 		Example: command.NormalizeExamples(`
   svcat describe class mysqldb
-  svcat describe class -uuid 997b8372-8dac-40ac-ae65-758b4a5075a5
+  svcat describe class --kube-name 997b8372-8dac-40ac-ae65-758b4a5075a5
 `),
 		PreRunE: command.PreRunE(describeCmd),
 		RunE:    command.RunE(describeCmd),
 	}
 	cmd.Flags().BoolVarP(
-		&describeCmd.lookupByUUID,
-		"uuid",
-		"u",
+		&describeCmd.LookupByKubeName,
+		"kube-name",
+		"k",
 		false,
-		"Whether or not to get the class by UUID (the default is by name)",
+		"Whether or not to get the class by its Kubernetes name (the default is by external name)",
 	)
+	describeCmd.AddNamespaceFlags(cmd.Flags(), true)
+	describeCmd.AddScopedFlags(cmd.Flags(), true)
+
 	return cmd
 }
 
-func (c *describeCmd) Validate(args []string) error {
+// Validate checks that the required arguments have been provided
+func (c *DescribeCmd) Validate(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("a class name or uuid is required")
+		return fmt.Errorf("a class external name or Kubernetes name is required")
 	}
 
-	if c.lookupByUUID {
-		c.uuid = args[0]
+	if c.LookupByKubeName {
+		c.KubeName = args[0]
 	} else {
-		c.name = args[0]
+		c.Name = args[0]
 	}
 
 	return nil
 }
 
-func (c *describeCmd) Run() error {
-	return c.describe()
-}
-
-func (c *describeCmd) describe() error {
-	var class *v1beta1.ClusterServiceClass
+// Run determines if we're getting a class by k8s name or
+// external name, gets the details of the class, and prints
+// the output to the user
+func (c *DescribeCmd) Run() error {
+	var class servicecatalog.Class
 	var err error
-	if c.lookupByUUID {
-		class, err = c.App.RetrieveClassByID(c.uuid)
+	if c.Namespace == "" {
+		c.Namespace = c.App.CurrentNamespace
+	}
+	scopeOpts := servicecatalog.ScopeOptions{
+		Scope:     c.Scope,
+		Namespace: c.Namespace,
+	}
+
+	if c.LookupByKubeName {
+		class, err = c.App.RetrieveClassByID(c.KubeName, scopeOpts)
 	} else {
-		retrieved, retErr := c.App.RetrieveClassByName(c.name, servicecatalog.ScopeOptions{Scope: servicecatalog.ClusterScope})
-		class = retrieved.(*v1beta1.ClusterServiceClass)
-		err = retErr
+		class, err = c.App.RetrieveClassByName(c.Name, scopeOpts)
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), servicecatalog.MultipleClassesFoundError) {
+			return fmt.Errorf(err.Error() + ", please specify a scope with --scope or an exact Kubernetes name with --kube-name")
+		}
+
 		return err
 	}
 
 	output.WriteClassDetails(c.Output, class)
 
-	plans, err := c.App.RetrievePlans(servicecatalog.RetrievePlanOptions{Scope: servicecatalog.AllScope, ClassID: class.Name})
+	opts := servicecatalog.ScopeOptions{Scope: servicecatalog.AllScope}
+	plans, err := c.App.RetrievePlans(class.GetName(), opts)
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog"
 )
 
 func validClusterServicePlan() *servicecatalog.ClusterServicePlan {
@@ -88,24 +88,6 @@ func TestValidateClusterServicePlan(t *testing.T) {
 			clusterServicePlan: func() *servicecatalog.ClusterServicePlan {
 				s := validClusterServicePlan()
 				s.Name = ""
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "bad name",
-			clusterServicePlan: func() *servicecatalog.ClusterServicePlan {
-				s := validClusterServicePlan()
-				s.Name = "#"
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "bad externalName",
-			clusterServicePlan: func() *servicecatalog.ClusterServicePlan {
-				s := validClusterServicePlan()
-				s.Spec.ExternalName = "#"
 				return s
 			}(),
 			valid: false,
@@ -185,15 +167,6 @@ func TestValidateClusterServicePlan(t *testing.T) {
 			}(),
 			valid: false,
 		},
-		{
-			name: "bad serviceclass reference name",
-			clusterServicePlan: func() *servicecatalog.ClusterServicePlan {
-				s := validClusterServicePlan()
-				s.Spec.ClusterServiceClassRef.Name = "%"
-				return s
-			}(),
-			valid: false,
-		},
 	}
 	for _, tc := range testCases {
 		tc := tc
@@ -235,24 +208,6 @@ func TestValidateServicePlan(t *testing.T) {
 			servicePlan: func() *servicecatalog.ServicePlan {
 				s := validServicePlan()
 				s.Name = ""
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "bad name",
-			servicePlan: func() *servicecatalog.ServicePlan {
-				s := validServicePlan()
-				s.Name = "#"
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "bad externalName",
-			servicePlan: func() *servicecatalog.ServicePlan {
-				s := validServicePlan()
-				s.Spec.ExternalName = "#"
 				return s
 			}(),
 			valid: false,
@@ -328,15 +283,6 @@ func TestValidateServicePlan(t *testing.T) {
 			servicePlan: func() *servicecatalog.ServicePlan {
 				s := validServicePlan()
 				s.Spec.ServiceClassRef.Name = ""
-				return s
-			}(),
-			valid: false,
-		},
-		{
-			name: "bad serviceclass reference name",
-			servicePlan: func() *servicecatalog.ServicePlan {
-				s := validServicePlan()
-				s.Spec.ServiceClassRef.Name = "%"
 				return s
 			}(),
 			valid: false,

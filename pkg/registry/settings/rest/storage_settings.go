@@ -17,12 +17,12 @@ limitations under the License.
 package rest
 
 import (
-	api "github.com/kubernetes-incubator/service-catalog/pkg/api"
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/settings"
-	settingsapiv1alpha1 "github.com/kubernetes-incubator/service-catalog/pkg/apis/settings/v1alpha1"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/servicecatalog/server"
-	"github.com/kubernetes-incubator/service-catalog/pkg/registry/settings/podpreset"
-	"github.com/kubernetes-incubator/service-catalog/pkg/storage/etcd"
+	api "github.com/kubernetes-sigs/service-catalog/pkg/api"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/settings"
+	settingsapiv1alpha1 "github.com/kubernetes-sigs/service-catalog/pkg/apis/settings/v1alpha1"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/servicecatalog/server"
+	"github.com/kubernetes-sigs/service-catalog/pkg/registry/settings/podpreset"
+	"github.com/kubernetes-sigs/service-catalog/pkg/storage/etcd"
 
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -36,7 +36,6 @@ import (
 // the servicecatalog API group. It implements (./pkg/apiserver).RESTStorageProvider
 type StorageProvider struct {
 	DefaultNamespace string
-	StorageType      server.StorageType
 	RESTClient       restclient.Interface
 }
 
@@ -82,7 +81,6 @@ func (p StorageProvider) v1alpha1Storage(
 			GetAttrsFunc:  podpreset.GetAttrs,
 			Trigger:       storage.NoTriggerPublisher,
 		},
-		p.StorageType,
 	)
 
 	version := settingsapiv1alpha1.SchemeGroupVersion

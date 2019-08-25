@@ -17,7 +17,7 @@ limitations under the License.
 package servicecatalog
 
 import (
-	"github.com/kubernetes-incubator/service-catalog/pkg/apis/servicecatalog/v1beta1"
+	"github.com/kubernetes-sigs/service-catalog/pkg/apis/servicecatalog/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,4 +37,12 @@ type RegisterOptions struct {
 	RelistBehavior    v1beta1.ServiceBrokerRelistBehavior
 	RelistDuration    *metav1.Duration
 	SkipTLS           bool
+}
+
+// ProvisionOptions allows for the passing of optional fields to the instance Provision method.
+type ProvisionOptions struct {
+	ExternalID string
+	Namespace  string
+	Params     interface{}
+	Secrets    map[string]string
 }

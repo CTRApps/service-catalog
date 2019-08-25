@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ limitations under the License.
 package clientset
 
 import (
-	servicecatalogv1beta1 "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset/typed/servicecatalog/v1beta1"
-	settingsv1alpha1 "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset/typed/settings/v1alpha1"
+	servicecatalogv1beta1 "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset/typed/servicecatalog/v1beta1"
+	settingsv1alpha1 "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset/typed/settings/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,11 +29,7 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	ServicecatalogV1beta1() servicecatalogv1beta1.ServicecatalogV1beta1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Servicecatalog() servicecatalogv1beta1.ServicecatalogV1beta1Interface
 	SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Settings() settingsv1alpha1.SettingsV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -49,20 +45,8 @@ func (c *Clientset) ServicecatalogV1beta1() servicecatalogv1beta1.Servicecatalog
 	return c.servicecatalogV1beta1
 }
 
-// Deprecated: Servicecatalog retrieves the default version of ServicecatalogClient.
-// Please explicitly pick a version.
-func (c *Clientset) Servicecatalog() servicecatalogv1beta1.ServicecatalogV1beta1Interface {
-	return c.servicecatalogV1beta1
-}
-
 // SettingsV1alpha1 retrieves the SettingsV1alpha1Client
 func (c *Clientset) SettingsV1alpha1() settingsv1alpha1.SettingsV1alpha1Interface {
-	return c.settingsV1alpha1
-}
-
-// Deprecated: Settings retrieves the default version of SettingsClient.
-// Please explicitly pick a version.
-func (c *Clientset) Settings() settingsv1alpha1.SettingsV1alpha1Interface {
 	return c.settingsV1alpha1
 }
 

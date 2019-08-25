@@ -19,9 +19,9 @@ package class
 import (
 	"fmt"
 
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
-	servicecatalog "github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
+	servicecatalog "github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"github.com/spf13/cobra"
 )
 
@@ -54,8 +54,8 @@ func NewCreateCmd(cxt *command.Context) *cobra.Command {
 		"Name from an existing class that will be copied (Required)",
 	)
 	cmd.MarkFlagRequired("from")
-	createCmd.AddNamespaceFlags(cmd.Flags(), true)
-	createCmd.AddScopedFlags(cmd.Flags(), true)
+	createCmd.AddNamespaceFlags(cmd.Flags(), false)
+	createCmd.AddScopedFlags(cmd.Flags(), false)
 	return cmd
 }
 

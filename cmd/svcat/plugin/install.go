@@ -24,9 +24,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 type installCmd struct {

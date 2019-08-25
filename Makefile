@@ -26,7 +26,7 @@ ROOT           = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BINDIR        ?= bin
 BUILD_DIR     ?= build
 COVERAGE      ?= $(CURDIR)/coverage.html
-SC_PKG         = github.com/kubernetes-incubator/service-catalog
+SC_PKG         = github.com/kubernetes-sigs/service-catalog
 TOP_SRC_DIRS   = cmd contrib pkg plugin
 SRC_DIRS       = $(shell sh -c "find $(TOP_SRC_DIRS) -name \\*.go \
                    -exec dirname {} \\; | sort | uniq")
@@ -57,7 +57,7 @@ STAT           = stat -c '%Y %n'
 endif
 
 TYPES_FILES    = $(shell find pkg/apis -name types.go)
-GO_VERSION    ?= 1.10
+GO_VERSION    ?= 1.12
 
 ALL_ARCH=amd64 arm arm64 ppc64le s390x
 ALL_CLIENT_PLATFORM=darwin linux windows
@@ -74,13 +74,13 @@ FILE_EXT=
 endif
 
 # TODO: Consider using busybox instead of debian
-BASEIMAGE?=gcr.io/google-containers/debian-base-$(ARCH):0.3
+BASEIMAGE?=gcr.io/google-containers/debian-base-$(ARCH):v1.0.0
 
 GO_BUILD       = env CGO_ENABLED=0 GOOS=$(PLATFORM) GOARCH=$(ARCH) \
                   go build $(GOFLAGS) -a -tags netgo -installsuffix netgo \
                   -ldflags '-s -w -X $(SC_PKG)/pkg.VERSION=$(VERSION) $(BUILD_LDFLAGS)'
 
-BASE_PATH      = $(ROOT:/src/github.com/kubernetes-incubator/service-catalog/=)
+BASE_PATH      = $(ROOT:/src/github.com/kubernetes-sigs/service-catalog/=)
 ORIG_GOPATH   ?= $(shell go env GOPATH)
 export GOPATH  = $(BASE_PATH):$(ROOT)/vendor
 
@@ -89,10 +89,12 @@ SERVICE_CATALOG_IMAGE             = $(REGISTRY)service-catalog-$(ARCH):$(VERSION
 SERVICE_CATALOG_MUTABLE_IMAGE     = $(REGISTRY)service-catalog-$(ARCH):$(MUTABLE_TAG)
 USER_BROKER_IMAGE                 = $(REGISTRY)user-broker-$(ARCH):$(VERSION)
 USER_BROKER_MUTABLE_IMAGE         = $(REGISTRY)user-broker-$(ARCH):$(MUTABLE_TAG)
+TEST_BROKER_IMAGE                 = $(REGISTRY)test-broker-$(ARCH):$(VERSION)
+TEST_BROKER_MUTABLE_IMAGE         = $(REGISTRY)test-broker-$(ARCH):$(MUTABLE_TAG)
 HEALTHCHECK_IMAGE                 = $(REGISTRY)healthcheck-$(ARCH):$(VERSION)
 HEALTHCHECK_MUTABLE_IMAGE         = $(REGISTRY)healthcheck-$(ARCH):$(MUTABLE_TAG)
 ifdef UNIT_TESTS
-	UNIT_TEST_FLAGS=-run $(UNIT_TESTS) -v
+	UNIT_TEST_FLAGS=-run $(UNIT_TESTS) -v --env GODEBUG tls13=1
 endif
 
 ifdef INT_TESTS
@@ -124,6 +126,7 @@ endif
 build: .init .generate_files \
 	$(BINDIR)/service-catalog \
 	$(BINDIR)/user-broker \
+	$(BINDIR)/test-broker \
 	$(BINDIR)/healthcheck
 
 .PHONY: $(BINDIR)/user-broker
@@ -132,6 +135,13 @@ $(BINDIR)/user-broker: .init contrib/cmd/user-broker \
 	  $(shell find contrib/cmd/user-broker -type f) \
 	  $(shell find contrib/pkg/broker -type f)
 	$(DOCKER_CMD) $(GO_BUILD) -o $@ $(SC_PKG)/contrib/cmd/user-broker
+
+.PHONY: $(BINDIR)/test-broker
+test-broker: $(BINDIR)/test-broker
+$(BINDIR)/test-broker: .init contrib/cmd/test-broker \
+	  $(shell find contrib/cmd/test-broker -type f) \
+	  $(shell find contrib/pkg/broker -type f)
+	$(DOCKER_CMD) $(GO_BUILD) -o $@ $(SC_PKG)/contrib/cmd/test-broker
 
 .PHONY: $(BINDIR)/healthcheck
 healthcheck: $(BINDIR)/healthcheck
@@ -154,15 +164,14 @@ generators: $(GENERATORS)
 
 .SECONDEXPANSION:
 
+$(BINDIR)/openapi-gen: $$(shell find vendor/k8s.io/kube-openapi/cmd/openapi-gen vendor/k8s.io/gengo) .init
+	$(DOCKER_CMD) go build -o $@ $(SC_PKG)/vendor/k8s.io/kube-openapi/cmd/openapi-gen
+
 # We specify broad dependencies for these generator binaries: each one depends
 # on everything under its source tree as well as gengo's.  This uses GNU Make's
 # secondary expansion feature to pass $* to `find`.
 $(BINDIR)/%-gen: $$(shell find vendor/k8s.io/code-generator/cmd/$$*-gen vendor/k8s.io/gengo) .init
 	$(DOCKER_CMD) go build -o $@ $(SC_PKG)/vendor/k8s.io/code-generator/cmd/$*-gen
-
-.PHONY: $(BINDIR)/e2e.test
-$(BINDIR)/e2e.test: .init
-	$(DOCKER_CMD) go test -c -o $@ $(SC_PKG)/test/e2e
 
 # Regenerate all files if the gen exes changed or any "types.go" files changed
 .generate_files: .init generators $(TYPES_FILES)
@@ -224,6 +233,8 @@ verify: .init verify-generated verify-client-gen verify-docs verify-vendor
 	@$(DOCKER_CMD) build/verify-errexit.sh
 	@echo Running tag verification:
 	@$(DOCKER_CMD) build/verify-tags.sh
+	@echo Validating golden file flag is defined:
+	@$(DOCKER_CMD) go test -run DRYRUN ./cmd/svcat/... -update || printf "\n\nmake test-update-goldenfiles is broken. For each failed package above, add the following empty import to one of the test files to define the -update flag:\n_ \"github.com/kubernetes-sigs/service-catalog/internal/test\""
 
 verify-docs: .init
 	@echo Running href checker$(SKIP_COMMENT):
@@ -268,22 +279,19 @@ test-update-goldenfiles: .init
 	$(DOCKER_CMD) go test ./cmd/svcat/... -update
 
 build-integration: .generate_files
-	$(DOCKER_CMD) go test -race github.com/kubernetes-incubator/service-catalog/test/integration/... -c
+	$(DOCKER_CMD) go test -race github.com/kubernetes-sigs/service-catalog/test/integration/... -c
+	$(DOCKER_CMD) go test --tags="integration" -race github.com/kubernetes-sigs/service-catalog/pkg/controller/... -c
 
 test-integration: .init $(scBuildImageTarget) build build-integration
 	# test kubectl
 	contrib/hack/setup-kubectl.sh
 	contrib/hack/test-apiserver.sh
-	# golang integration tests
+#	# golang integration tests
 	$(DOCKER_CMD) ./integration.test -test.v $(INT_TEST_FLAGS)
+	$(DOCKER_CMD) ./controller.test
 
-clean-e2e: .init $(scBuildImageTarget)
-	$(DOCKER_CMD) rm -f $(BINDIR)/e2e.test
-
-build-e2e: .generate_files $(BINDIR)/e2e.test
-
-test-e2e: build-e2e
-	$(BINDIR)/e2e.test
+test-e2e:
+	./contrib/hack/ci/run-e2e-tests.sh
 
 clean: clean-bin clean-build-image clean-generated clean-coverage
 
@@ -308,6 +316,7 @@ clean-generated:
 	find $(TOP_SRC_DIRS) -type d -name *_generated | xargs git checkout --
 	# rollback openapi changes
 	git checkout -- pkg/openapi/openapi_generated.go
+	rm api_violations.txt
 
 # purge-generated removes generated files from the filesystem.
 purge-generated: .init $(scBuildImageTarget)
@@ -323,7 +332,7 @@ clean-coverage:
 
 # Building Docker Images for our executables
 ############################################
-images: user-broker-image service-catalog-image healthcheck-image
+images: user-broker-image test-broker-image service-catalog-image healthcheck-image
 
 images-all: $(addprefix arch-image-,$(ALL_ARCH))
 arch-image-%:
@@ -354,6 +363,13 @@ ifeq ($(ARCH),amd64)
 	docker tag $(USER_BROKER_MUTABLE_IMAGE) $(REGISTRY)user-broker:$(MUTABLE_TAG)
 endif
 
+test-broker-image: contrib/build/test-broker/Dockerfile $(BINDIR)/test-broker
+	$(call build-and-tag,"test-broker",$(TEST_BROKER_IMAGE),$(TEST_BROKER_MUTABLE_IMAGE),"contrib/")
+ifeq ($(ARCH),amd64)
+	docker tag $(TEST_BROKER_IMAGE) $(REGISTRY)test-broker:$(VERSION)
+	docker tag $(TEST_BROKER_MUTABLE_IMAGE) $(REGISTRY)test-broker:$(MUTABLE_TAG)
+endif
+
 service-catalog-image: build/service-catalog/Dockerfile $(BINDIR)/service-catalog
 	$(call build-and-tag,"service-catalog",$(SERVICE_CATALOG_IMAGE),$(SERVICE_CATALOG_MUTABLE_IMAGE))
 ifeq ($(ARCH),amd64)
@@ -370,7 +386,7 @@ endif
 
 # Push our Docker Images to a registry
 ######################################
-push: user-broker-push service-catalog-push
+push: user-broker-push test-broker-push service-catalog-push
 
 user-broker-push: user-broker-image
 	docker push $(USER_BROKER_IMAGE)
@@ -378,6 +394,14 @@ user-broker-push: user-broker-image
 ifeq ($(ARCH),amd64)
 	docker push $(REGISTRY)user-broker:$(VERSION)
 	docker push $(REGISTRY)user-broker:$(MUTABLE_TAG)
+endif
+
+test-broker-push: test-broker-image
+	docker push $(TEST_BROKER_IMAGE)
+	docker push $(TEST_BROKER_MUTABLE_IMAGE)
+ifeq ($(ARCH),amd64)
+	docker push $(REGISTRY)test-broker:$(VERSION)
+	docker push $(REGISTRY)test-broker:$(MUTABLE_TAG)
 endif
 
 service-catalog-push: service-catalog-image

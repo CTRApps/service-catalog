@@ -17,24 +17,29 @@ limitations under the License.
 package class
 
 import (
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/command"
-	"github.com/kubernetes-incubator/service-catalog/cmd/svcat/output"
-	"github.com/kubernetes-incubator/service-catalog/pkg/svcat/service-catalog"
+	"fmt"
+	"strings"
+
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/command"
+	"github.com/kubernetes-sigs/service-catalog/cmd/svcat/output"
+	"github.com/kubernetes-sigs/service-catalog/pkg/svcat/service-catalog"
 	"github.com/spf13/cobra"
 )
 
-type getCmd struct {
+// GetCmd contains the information needed to Get a specific class or all classes
+type GetCmd struct {
 	*command.Namespaced
 	*command.Scoped
 	*command.Formatted
-	lookupByUUID bool
-	uuid         string
-	name         string
+
+	LookupByKubeName bool
+	KubeName         string
+	Name             string
 }
 
 // NewGetCmd builds a "svcat get classes" command
 func NewGetCmd(cxt *command.Context) *cobra.Command {
-	getCmd := &getCmd{
+	getCmd := &GetCmd{
 		Namespaced: command.NewNamespaced(cxt),
 		Scoped:     command.NewScoped(),
 		Formatted:  command.NewFormatted(),
@@ -48,17 +53,17 @@ func NewGetCmd(cxt *command.Context) *cobra.Command {
   svcat get classes --scope cluster
   svcat get classes --scope namespace --namespace dev
   svcat get class mysqldb
-  svcat get class --uuid 997b8372-8dac-40ac-ae65-758b4a5075a5
+  svcat get class --kube-name 997b8372-8dac-40ac-ae65-758b4a5075a5
 `),
 		PreRunE: command.PreRunE(getCmd),
 		RunE:    command.RunE(getCmd),
 	}
 	cmd.Flags().BoolVarP(
-		&getCmd.lookupByUUID,
-		"uuid",
-		"u",
+		&getCmd.LookupByKubeName,
+		"kube-name",
+		"k",
 		false,
-		"Whether or not to get the class by UUID (the default is by name)",
+		"Whether or not to get the class by its Kubernetes name (the default is by external name)",
 	)
 	getCmd.AddOutputFlags(cmd.Flags())
 	getCmd.AddNamespaceFlags(cmd.Flags(), true)
@@ -66,27 +71,30 @@ func NewGetCmd(cxt *command.Context) *cobra.Command {
 	return cmd
 }
 
-func (c *getCmd) Validate(args []string) error {
+// Validate checks that the required arguments have been provided
+func (c *GetCmd) Validate(args []string) error {
 	if len(args) > 0 {
-		if c.lookupByUUID {
-			c.uuid = args[0]
+		if c.LookupByKubeName {
+			c.KubeName = args[0]
 		} else {
-			c.name = args[0]
+			c.Name = args[0]
 		}
 	}
 
 	return nil
 }
 
-func (c *getCmd) Run() error {
-	if c.uuid == "" && c.name == "" {
+// Run determines if we're getting a single class or all classes,
+// and calls the pertinent function
+func (c *GetCmd) Run() error {
+	if c.KubeName == "" && c.Name == "" {
 		return c.getAll()
 	}
 
 	return c.get()
 }
 
-func (c *getCmd) getAll() error {
+func (c *GetCmd) getAll() error {
 	opts := servicecatalog.ScopeOptions{
 		Namespace: c.Namespace,
 		Scope:     c.Scope,
@@ -95,21 +103,26 @@ func (c *getCmd) getAll() error {
 	if err != nil {
 		return err
 	}
-
 	output.WriteClassList(c.Output, c.OutputFormat, classes...)
 	return nil
 }
 
-func (c *getCmd) get() error {
+func (c *GetCmd) get() error {
 	var class servicecatalog.Class
 	var err error
-
-	if c.lookupByUUID {
-		class, err = c.App.RetrieveClassByID(c.uuid)
-	} else if c.name != "" {
-		class, err = c.App.RetrieveClassByName(c.name, servicecatalog.ScopeOptions{Scope: c.Scope, Namespace: c.Namespace})
+	scopeOpts := servicecatalog.ScopeOptions{
+		Scope:     c.Scope,
+		Namespace: c.Namespace,
+	}
+	if c.LookupByKubeName {
+		class, err = c.App.RetrieveClassByID(c.KubeName, scopeOpts)
+	} else if c.Name != "" {
+		class, err = c.App.RetrieveClassByName(c.Name, scopeOpts)
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), servicecatalog.MultipleClassesFoundError) {
+			return fmt.Errorf(err.Error() + ", please specify a scope with --scope or an exact Kubernetes name with --kube-name")
+		}
 		return err
 	}
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ import (
 	sync "sync"
 	time "time"
 
-	clientset "github.com/kubernetes-incubator/service-catalog/pkg/client/clientset_generated/clientset"
-	internalinterfaces "github.com/kubernetes-incubator/service-catalog/pkg/client/informers_generated/externalversions/internalinterfaces"
-	servicecatalog "github.com/kubernetes-incubator/service-catalog/pkg/client/informers_generated/externalversions/servicecatalog"
-	settings "github.com/kubernetes-incubator/service-catalog/pkg/client/informers_generated/externalversions/settings"
+	clientset "github.com/kubernetes-sigs/service-catalog/pkg/client/clientset_generated/clientset"
+	internalinterfaces "github.com/kubernetes-sigs/service-catalog/pkg/client/informers_generated/externalversions/internalinterfaces"
+	servicecatalog "github.com/kubernetes-sigs/service-catalog/pkg/client/informers_generated/externalversions/servicecatalog"
+	settings "github.com/kubernetes-sigs/service-catalog/pkg/client/informers_generated/externalversions/settings"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
